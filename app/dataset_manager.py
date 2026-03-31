@@ -4,10 +4,10 @@
 
 import logging
 
-from . import DATASETS, SPEC
-from .config_writer import create_dataset_configs
-from .state_registry import write_registry
-from .pipeline_manager import submit_pipeline
+from app import DATASETS, SPEC, get_logger
+from app.config_writer import create_dataset_configs, update_dataset_configs
+from app.state_registry import write_registry
+from app.pipeline_manager import submit_pipeline
 
 
 logger = get_logger("dataset_manager")
@@ -39,15 +39,21 @@ def initialize_dataset(dataset_name):
 
 
 def update_dataset(dataset_name, locations_csv):
-    logger.info("Dataset update detected:", dataset_name, locations_csv)
+    import csv
+
+    logger.info(f"Dataset '{dataset_name}' update detected: {locations_csv}")
 
     if dataset_name not in DATASETS:
         logger.warning(f"Dataset not found: {dataset_name}")
         return
 
     # Parse the update file to extract labx, labz coordinates
+    new_locations = []
     with open(locations_csv, "r") as f:
-        new_locations = csv.load(f)
+        reader = csv.reader(f)
+        # FIX will there be a header row?
+        for row in reader:
+            new_locations.append(row)
     logger.info(f"{locations_csv} contains {len(new_locations)} new locations.")
 
     # Collect data for each new location and update the dataset configs

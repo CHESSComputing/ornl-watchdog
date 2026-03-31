@@ -7,23 +7,46 @@
 import logging
 import yaml
 
-from . import DATASET_REGISTRY
+from app import REGISTRY_YAML, get_logger
 
 logger = get_logger("state_registry")
 
+class StateRegistry:
+    def __init__(self, filename=None):
+        self.filename = filename
+
+        self.datasets = {}
+
+    def read(self):
+        """Read the registry from disk."""
+        logger.info(f"Loading registry from {REGISTRY_YAML}")
+        try:
+            with open(self.filename, "r") as f:
+                self.registry = yaml.safe_load(f)
+        except FileNotFoundError:
+            logger.warning("registry not found, starting with empty registry")
+            self.registry = {}
+
+    def write(self):
+        """Write the registry to disk."""
+        with open(self.filename, "w") as f:
+            yaml.dump(self.registry, f, sort_keys=False)
+        logger.info(f"Wrote registry to {REGISTRY_YAML}")
+
 def load_registry():
-    """Read the dataset registry from disk."""
-    logging.info(f"Loading dataset registry from {REGISTRY_FILE}")
+    """Read the registry from disk."""
+    logger.info(f"Loading registry from {REGISTRY_YAML}")
     try:
-        with open(REGISTRY_FILE, "r") as f:
-            registry = yaml.load(f, Loader=yaml.CLoader)
-            DATASETS = registry
+        with open(REGISTRY_YAML, "r") as f:
+            registry = yaml.safe_load(f)
     except FileNotFoundError:
-        logging.warning("Dataset registry not found, starting with empty registry")
-        DATASETS = {}
+        logger.warning("registry not found, starting with empty registry")
+        registry = {}
+    return registry
 
 def write_registry():
-    """Write the dataset registry to disk."""
-    with open(REGISTRY_FILE, "w") as f:
-        yaml.dump(DATASETS, f)
-    logging.info(f"Wrote dataset registry to {REGISTRY_FILE}")
+    """Write the registry to disk."""
+    from app import DATASETS
+    with open(REGISTRY_YAML, "w") as f:
+        yaml.dump(DATASETS, f, sort_keys=False)
+    logger.info(f"Wrote registry to {REGISTRY_YAML}")

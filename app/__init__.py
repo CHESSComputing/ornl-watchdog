@@ -5,12 +5,10 @@
 SPEC_HOST = 'localhost'
 # Port number of the spec server:
 SPEC_PORT = 6511
-# Do not modify
-SPEC = None
 
 # SPEC data collection parameters
 # Timeout for SPEC commands in seconds:
-TIMEOUT = 30
+SPEC_TIMEOUT = 30
 # Name / mnemonic of labx motor in SPEC:
 LABX_MOTOR = 'labx'
 # Name / mnemonic of labz motor in SPEC:
@@ -35,10 +33,10 @@ STRAIN_ANALYSIS_YAML = '/nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<bt
 # Dataset registry for state recovery in case of crashes
 # Full absolute path to the dataset registry YAML file:
 REGISTRY_YAML = "/nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<btr>/dataset_registry.yaml"
-# Do not modify
-DATASETS = {}
 
-def get_logger(name=__name__, log_level="INFO"):
+# Do not modify below this line
+
+def get_logger(name=__name__, log_level="DEBUG"):
     """Set up a logger with the specified name and log level."""
     import logging
 
@@ -50,4 +48,11 @@ def get_logger(name=__name__, log_level="INFO"):
         '{asctime}: {name:20}: {levelname}: {message}',
         datefmt='%Y-%m-%d %H:%M:%S', style='{'))
     logger.addHandler(log_handler)
+    logger.handlers = [log_handler]
     return logger
+
+from app.state_registry import load_registry
+DATASETS = load_registry()
+
+from app.spec_controller import SpecController
+SPEC = SpecController(SPEC_HOST, SPEC_PORT)

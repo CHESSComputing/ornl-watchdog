@@ -3,48 +3,86 @@
 """Generate configuration files for processing new data with CHAP"""
 
 import logging
+from pathlib import Path
+import os
 import yaml
 
-from . import ANALYSIS_ROOT, DATASETS
+from app import ANALYSIS_ROOT, DATASETS, get_logger
 
 logger = get_logger("config_writer")
 
 def create_dataset_configs(dataset_name):
     """Create configuration files for processing a new dataset."""
-    analysis_dir = ANALYSIS_ROOT / dataset_name
+    analysis_dir = Path(ANALYSIS_ROOT) / dataset_name
     analysis_dir.mkdir(parents=True, exist_ok=True)
 
-    pipeline_yaml = analysis_dir / "pipeline.yaml"
     map_yaml = analysis_dir / "map_config.yaml"
-
-    if not pipeline_yaml.exists():
-        pipeline_yaml.write_text("pipeline: setup\n")
+    pipeline_yaml = analysis_dir / "pipeline.yaml"
 
     if not map_yaml.exists():
-        map_yaml.write_text("map: empty\n")
+        from app import LABX_MOTOR, LABZ_MOTOR
+        map_config = {
+            "title": dataset_name,
+            "station": "id1a3",
+            "experiment_type": "EDD",
+            "spec_scans": [
+                {
+                    "spec_file": None, # FILL IN THIS FILENAME
+                    "scan_numbers": []
+                }
+            ],
+            "independent_dimensions": [
+                {
+                    "label": "labx",
+                    "units": "mm",
+                    "data_type": "spec_motor",
+                    "name": LABX_MOTOR
+                },
+                {
+                    "label": "labz",
+                    "units": "mm",
+                    "data_type": "spec_motor",
+                    "name": LABZ_MOTOR
+                }
+            ],
+            "scalar_data": [] # FILL IN THIS LIST
+        }
+        with open(map_yaml, "w") as f:
+            logger.debug(f"Writing {map_yaml}")
+            yaml.dump(map_config, f, sort_keys=False)
+
+    if not pipeline_yaml.exists():
+        pipeline = {"config": {}, "pipeline": []} # FILL IN THIS PIPELINE
+        with open(pipeline_yaml, "w") as f:
+            logger.debug(f"Writing {pipeline_yaml}")
+            yaml.dump(pipeline, f, sort_keys=False)
 
     logger.info(f"Created configs for {dataset_name}")
 
 
 def update_dataset_configs(dataset_name, scan_numbers):
     """Update the processing pipeline for a dataset with new scans."""
-    analysis_dir = ANALYSIS_ROOT / dataset_name
+    analysis_dir = Path(ANALYSIS_ROOT) / dataset_name
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
 
     # Update the map config with new scan numbers
-    with open(map_yaml, "a") as f:
-        map_config = yaml.load(f, Loader=yaml.CLoader)
-        map_config["spec_scans"][0]["scan_numbers"].extend(scan_numbers)
-        yaml.dump(map_config, f)
+    logger.debug(f"Updating {map_yaml}")
+    with open(map_yaml, "r") as f:
+        map_config = yaml.safe_load(f)
+    map_config["spec_scans"][0]["scan_numbers"].extend(scan_numbers)
+    with open(map_yaml, "w") as f:
+        yaml.dump(map_config, f, sort_keys=False)
       
     # Update the pipeline config to include a new "update" step for the new scans
-    with open(pipeline_yaml, "a") as f:
-        pipeline_config = yaml.load(f, Loader=yaml.CLoader)
-        pipeline_config[f"update_{DATASETS[dataset_name]['current_update']}"] = [
-            # FILL IN THIS LIST
-        ]
-        yaml.dump(pipeline_config, f)
+    logger.debug(f"Updating {pipeline_yaml}")
+    with open(pipeline_yaml, "r") as f:
+        pipeline_config = yaml.safe_load(f)
+    pipeline_config[f"update_{DATASETS[dataset_name]['current_update']}"] = [
+        # FILL IN THIS LIST
+    ]
+    with open(pipeline_yaml, "w") as f:
+        yaml.dump(pipeline_config, f, sort_keys=False)
 
     logger.info(f"Updated configs for {dataset_name}")
 

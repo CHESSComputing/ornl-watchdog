@@ -3,15 +3,21 @@
 
 import asyncio
 import logging
+import queue
+import threading
 
-from . import SPEC_HOST, SPEC_PORT
+from app import (
+    SPEC_HOST, SPEC_PORT, SPEC_TIMEOUT,
+    LABX_MOTOR, LABZ_MOTOR,
+    TSERIES_NPTS, TSERIES_EXPOSURE,
+    get_logger,
+)
 
 logger = get_logger("spec_controller")
 
 def init_spec_controller():
     logger.info("Initializing SpecController")
-    global SPEC
-    SPEC = SpecController()
+    return SpecController(SPEC_HOST, SPEC_PORT)
 
 class SpecController:
 
@@ -31,13 +37,28 @@ class SpecController:
 
         self.worker.start()
 
+    def run_with_timeout(self, coroutine, *coroutine_args, **coroutine_kwargs):
+        # return
+        async def run():
+            async with asyncio.Timeout(SPEC_TIMEOUT):
+                future = asyncio.run_coroutine_threadsafe(
+                    coroutine(*coroutine_args, **coroutine_kwargs),
+                    self.async_event_loop,
+                )
+                try:
+                    result = future.result(timeout=SPEC_TIMEOUT)
+                    return result
+                except Exception as e:
+                    return e
+        return asyncio.run(run())
+
     def _connect(self):
         from pyspec.client import Client
 
-        logger.info("Initializing pyspec Client")
+        logger.info("Initializing pyspec.client.Client")
         self.client = Client(host=self.spec_host, port=self.spec_port)
-        await self.client.__aenter__()
-        logger.info("pyspec Client connected")
+        self.run_with_timeout(self.client.__aenter__)
+        logger.info("pyspec.client.Client connected")
 
     def enqueue(self, command_sequence, callback=None):
         """
@@ -50,18 +71,9 @@ class SpecController:
 
     def _send(self, command):
         logger.info(f"Sending SPEC command: {command}")
-        with asyncio.Timeout(COMMAND_TIMEOUT):
-            future = asyncio.run_coroutine_threadsafe(
-                self.client.exec(cmd),
-                self.async_event_loop,
-            )
-            try:
-                result = future.result(timeout=10)
-                logger.info("client.exec succeeded", extra={"cmd": cmd})
-            except asyncio.TimeoutError:
-                logger.error("client.exec timed out", extra={"cmd": cmd})
-            except Exception as e:
-                logger.exception("client.exec failed", extra={"cmd": cmd})
+        result = self.run_with_timeout(self.client.exec, command)
+        if isinstance(result, Exception):
+            logger.exception("Failed", extra={"command": command, "exc": result})
 
     def _worker_loop(self):
         while True:
@@ -70,7 +82,7 @@ class SpecController:
                 for cmd in commands:
                     self._send(cmd)
                 if callback:
-                    self.logger("Running callback after '{cmd}")''
+                    logger.info(f"Running callback after '{cmd}'")
                     callback()
             except Exception as e:
                 logger.error("SPEC command failure:", exc_info=True)
@@ -80,12 +92,17 @@ class SpecController:
     def collect_point(self, dataset, labx, labz, callback=None):
         commands = [
             f"newsample {dataset}",
-            f"mv LABX_MOTOR {labx}",
-            f"mv LABZ_MOTOR {labz}",
+            f"mv {LABX_MOTOR} {labx}",
+            f"mv {LABZ_MOTOR} {labz}",
             f"tseries {TSERIES_NPTS} {TSERIES_EXPOSURE}",
         ]
         self.enqueue(commands, callback)
 
     @property
-    def scan_n():
-        return await self._scan_n.get()
+    def scan_n(self):
+        # return 1
+        logger.info("Getting SCAN_N from SPEC")
+        result = self.run_with_timeout(self._scan_n.get)
+        if isinstance(result, Exception):
+            logger.exception("Failed", extra={"exc": result})
+

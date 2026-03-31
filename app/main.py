@@ -4,17 +4,20 @@ starts the event loop.
 """
 
 import logging
+import os
 import time
 from watchdog.observers import Observer
 
-from . import WATCH_ROOT
-from .state_registry import load_registry
-from .spec_controller import init_spec_controller
-from .watcher import DatasetWatcher
+from app import WATCH_ROOT, get_logger
+from app.watcher import DatasetWatcher
 
 logger = get_logger()
 
 def main():
+    if not os.path.isdir(WATCH_ROOT):
+        logger.error(f"Directory {WATCH_ROOT} not found")
+        raise FileNotFoundError(WATCH_ROOT)
+
     logger.info("Starting watchdog daemon")
 
     observer = Observer()
@@ -38,6 +41,4 @@ def main():
 
 
 if __name__ == "__main__":
-    load_registry()
-    init_spec_controller()
     main()
