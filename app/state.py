@@ -116,5 +116,10 @@ class StateConfig(BaseModel):
     def write(self):
         """Write the registry to disk (at self.filename)"""
         with open(self.filename, "w") as f:
-            yaml.dump(self.model_dump(), f, sort_keys=False)
+            yaml.dump(
+                self.model_dump(
+                    exclude=["spec"],
+                ),
+                f,
+                sort_keys=False)
         logger.info(f"Wrote state settings to {self.filename}")
