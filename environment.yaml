@@ -1,0 +1,9 @@
+name: ornl-watchdog
+channels:
+- nodefaults
+- conda-forge
+dependencies:
+- pydantic
+- pip:
+  - chess-pyspec
+  - watchdog
