@@ -7,20 +7,20 @@ from pathlib import Path
 import os
 import yaml
 
-from app import ANALYSIS_ROOT, DATASETS, get_logger
+from app import get_logger
+from app.state import get_state
 
 logger = get_logger("config_writer")
 
 def create_dataset_configs(dataset_name):
     """Create configuration files for processing a new dataset."""
-    analysis_dir = Path(ANALYSIS_ROOT) / dataset_name
+    analysis_dir = Path(get_state().analysis_root) / dataset_name
     analysis_dir.mkdir(parents=True, exist_ok=True)
 
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
 
     if not map_yaml.exists():
-        from app import LABX_MOTOR, LABZ_MOTOR
         map_config = {
             "title": dataset_name,
             "station": "id1a3",
@@ -36,13 +36,13 @@ def create_dataset_configs(dataset_name):
                     "label": "labx",
                     "units": "mm",
                     "data_type": "spec_motor",
-                    "name": LABX_MOTOR
+                    "name": get_state().labx_motor
                 },
                 {
                     "label": "labz",
                     "units": "mm",
                     "data_type": "spec_motor",
-                    "name": LABZ_MOTOR
+                    "name": get_state().labz_motor
                 }
             ],
             "scalar_data": [] # FILL IN THIS LIST
@@ -62,7 +62,7 @@ def create_dataset_configs(dataset_name):
 
 def update_dataset_configs(dataset_name, scan_numbers):
     """Update the processing pipeline for a dataset with new scans."""
-    analysis_dir = Path(ANALYSIS_ROOT) / dataset_name
+    analysis_dir = Path(get_state().analysis_root) / dataset_name
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
 
@@ -78,7 +78,8 @@ def update_dataset_configs(dataset_name, scan_numbers):
     logger.debug(f"Updating {pipeline_yaml}")
     with open(pipeline_yaml, "r") as f:
         pipeline_config = yaml.safe_load(f)
-    pipeline_config[f"update_{DATASETS[dataset_name]['current_update']}"] = [
+    pipeline_config[
+        f"update_{get_state().datasets[dataset_name]['current_update']}"] = [
         # FILL IN THIS LIST
     ]
     with open(pipeline_yaml, "w") as f:

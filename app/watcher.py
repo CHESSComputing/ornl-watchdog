@@ -16,13 +16,16 @@ logger = get_logger("watcher")
 class DatasetWatcher(FileSystemEventHandler):
 
     def on_created(self, event):
+        logger.info(f"New event = {event}")
 
         path = Path(event.src_path)
 
         if path.is_dir():
             dataset = path.name
+            logger.info(f"Initializing new dataset '{dataset}'")
             initialize_dataset(dataset)
 
         elif path.suffix == ".txt":
             dataset = path.parent.name
+            logger.info(f"New locations for dataset '{dataset}'")
             update_dataset(dataset, path)

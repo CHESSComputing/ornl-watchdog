@@ -6,24 +6,28 @@ import logging
 import queue
 import threading
 
-from app import (
-    SPEC_HOST, SPEC_PORT, SPEC_TIMEOUT,
-    LABX_MOTOR, LABZ_MOTOR,
-    TSERIES_NPTS, TSERIES_EXPOSURE,
-    get_logger,
-)
+from app import get_logger
+
 
 logger = get_logger("spec_controller")
 
-def init_spec_controller():
-    logger.info("Initializing SpecController")
-    return SpecController(SPEC_HOST, SPEC_PORT)
 
 class SpecController:
 
-    def __init__(self, spec_host, spec_port):
+    def __init__(
+            self,
+            spec_host, spec_port, spec_timeout,
+            labx_motor, labz_motor,
+            tseries_npts, tseries_exposure
+    ):
         self.spec_host = spec_host
         self.spec_port = spec_port
+        self.spec_timeout = spec_timeout
+        self.labx_motor = labx_motor
+        self.labz_motor = labz_motor
+        self.tseries_npts = tseries_npts
+        self.tseries_exposure = tseries_exposure
+
         self.client = None
         self.async_event_loop = asyncio.new_event_loop()
         self._connect()
@@ -40,13 +44,13 @@ class SpecController:
     def run_with_timeout(self, coroutine, *coroutine_args, **coroutine_kwargs):
         # return
         async def run():
-            async with asyncio.Timeout(SPEC_TIMEOUT):
+            async with asyncio.Timeout(self.spec_timeout):
                 future = asyncio.run_coroutine_threadsafe(
                     coroutine(*coroutine_args, **coroutine_kwargs),
                     self.async_event_loop,
                 )
                 try:
-                    result = future.result(timeout=SPEC_TIMEOUT)
+                    result = future.result(timeout=self.spec_timeout)
                     return result
                 except Exception as e:
                     return e
@@ -92,9 +96,9 @@ class SpecController:
     def collect_point(self, dataset, labx, labz, callback=None):
         commands = [
             f"newsample {dataset}",
-            f"mv {LABX_MOTOR} {labx}",
-            f"mv {LABZ_MOTOR} {labz}",
-            f"tseries {TSERIES_NPTS} {TSERIES_EXPOSURE}",
+            f"mv {self.labx_motor} {labx}",
+            f"mv {self.labz_motor} {labz}",
+            f"tseries {self.tseries_npts} {self.tseries_exposure}"
         ]
         self.enqueue(commands, callback)
 

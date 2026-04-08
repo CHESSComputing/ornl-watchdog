@@ -3,42 +3,54 @@
 starts the event loop.
 """
 
+import argparse
 import logging
 import os
+import sys
 import time
 from watchdog.observers import Observer
 
-from app import WATCH_ROOT, get_logger
+from app import get_logger
 from app.watcher import DatasetWatcher
+from app.state import load_state, get_state
 
 logger = get_logger()
 
 def main():
-    if not os.path.isdir(WATCH_ROOT):
-        logger.error(f"Directory {WATCH_ROOT} not found")
-        raise FileNotFoundError(WATCH_ROOT)
+    # Run watchdog daemon
+    if not os.path.isdir(get_state().watch_root):
+        logger.error(f"Directory {get_state().watch_root} not found")
+        raise FileNotFoundError(get_state().watch_root)
 
     logger.info("Starting watchdog daemon")
-
     observer = Observer()
+    logger.debug(f"observer = {observer}")
     observer.schedule(
         DatasetWatcher(),
-        str(WATCH_ROOT),
+        str(get_state().watch_root),
         recursive=True
     )
-
+    logger.info(f"Starting observer")
     observer.start()
-
     try:
         while True:
             time.sleep(1)
-
     except KeyboardInterrupt:
-
         observer.stop()
-
     observer.join()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description='''wacthdog daemon for 2026-2 autonomous ORNL EDXRD
+        Experiment at 1a3.'''
+    )
+    parser.add_argument(
+        'statefile',
+        help='''YAML file containing watchdog program state settings.'''
+    )
+    args = parser.parse_args(sys.argv[1:])
+
+    load_state(args.statefile)
+
     main()
