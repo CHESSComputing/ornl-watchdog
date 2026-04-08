@@ -77,7 +77,7 @@ class SpecController:
         logger.info(f"Sending SPEC command: {command}")
         result = self.run_with_timeout(self.client.exec, command)
         if isinstance(result, Exception):
-            logger.exception("Failed", extra={"command": command, "exc": result})
+            logger.error(f"{command}: result")
 
     def _worker_loop(self):
         while True:
@@ -89,7 +89,7 @@ class SpecController:
                     logger.info(f"Running callback after '{cmd}'")
                     callback()
             except Exception as e:
-                logger.error("SPEC command failure:", exc_info=True)
+                logger.error(e)
             finally:
                 self.queue.task_done()
 
@@ -108,5 +108,5 @@ class SpecController:
         logger.info("Getting SCAN_N from SPEC")
         result = self.run_with_timeout(self._scan_n.get)
         if isinstance(result, Exception):
-            logger.exception("Failed", extra={"exc": result})
+            logger.error(result)
 
