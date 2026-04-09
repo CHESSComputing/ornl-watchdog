@@ -15,7 +15,7 @@ from app import get_logger
 from app.spec_controller import SpecController
 
 
-logger = get_logger("state_registry")
+logger = get_logger("state")
 
 
 def get_state():
@@ -157,6 +157,7 @@ class StateConfig(BaseModel):
             yaml.dump(
                 self.model_dump(
                     exclude=["spec"],
+                    mode='json',
                 ),
                 f,
                 sort_keys=False)
