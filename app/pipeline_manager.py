@@ -2,7 +2,6 @@
 
 """Handle jobs for CHAP processing pipelines."""
 
-import logging
 from pathlib import Path
 
 from app import get_logger

@@ -3,7 +3,6 @@
 
 import logging
 from pathlib import Path
-
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 

@@ -6,8 +6,8 @@ import logging
 
 from app import get_logger
 from app.config_writer import create_dataset_configs, update_dataset_configs
-from app.state import get_state
 from app.pipeline_manager import submit_pipeline
+from app.state import get_state
 
 
 logger = get_logger("dataset_manager")

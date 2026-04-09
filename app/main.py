@@ -11,8 +11,8 @@ import time
 from watchdog.observers import Observer
 
 from app import get_logger
-from app.watcher import DatasetWatcher
 from app.state import load_state, get_state
+from app.watcher import DatasetWatcher
 
 logger = get_logger()
 
