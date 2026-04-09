@@ -17,6 +17,16 @@ from app.watcher import DatasetWatcher
 logger = get_logger()
 
 def main():
+    """Start the watchdog observer and block until interrupted.
+
+    Reads the watch root from application state, schedules a
+    :class:`~app.watcher.DatasetWatcher` on that directory (recursively),
+    then blocks in a ``while True`` loop until a :exc:`KeyboardInterrupt`
+    is received, at which point the observer is stopped and joined.
+
+    :raises FileNotFoundError: If the configured ``watch_root`` directory
+        does not exist on the filesystem.
+    """
     # Run watchdog daemon
     if not os.path.isdir(get_state().watch_root):
         logger.error(f"Directory {get_state().watch_root} not found")

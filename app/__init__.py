@@ -1,8 +1,23 @@
-"""Module contents."""
+"""Shared utilities for the ornl-watchdog application.
+
+Provides a convenience factory for creating pre-configured
+:mod:`logging` loggers used throughout the package.
+"""
 
 def get_logger(name=__name__, log_level="DEBUG"):
-    """Convenience function to set up a nice logger with the specified
-    name and log level.
+    """Create and return a :class:`logging.Logger` with a stream handler.
+
+    Configures the logger with a formatted :class:`logging.StreamHandler`
+    that writes to stderr.  Re-assigning ``logger.handlers`` ensures no
+    duplicate handlers accumulate on repeated calls with the same *name*.
+
+    :param name: Logger name, typically the calling module's ``__name__``.
+    :type name: str
+    :param log_level: Case-insensitive logging level string
+        (e.g. ``"DEBUG"``, ``"INFO"``, ``"WARNING"``).
+    :type log_level: str
+    :returns: Configured logger instance.
+    :rtype: logging.Logger
     """
     import logging
 

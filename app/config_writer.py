@@ -13,7 +13,17 @@ from app.state import get_state
 logger = get_logger("config_writer")
 
 def create_dataset_configs(dataset_name):
-    """Create configuration files for processing a new dataset."""
+    """Create CHAP configuration files for a new dataset.
+
+    Creates ``<analysis_root>/<dataset_name>/`` if it does not exist, then
+    writes ``map_config.yaml`` and ``pipeline.yaml`` with skeleton
+    content derived from application state.  Existing files are left
+    untouched.
+
+    :param dataset_name: Name of the dataset; used as the analysis
+        subdirectory name and as the map title.
+    :type dataset_name: str
+    """
     analysis_dir = Path(get_state().analysis_root) / dataset_name
     analysis_dir.mkdir(parents=True, exist_ok=True)
 
@@ -61,7 +71,17 @@ def create_dataset_configs(dataset_name):
 
 
 def update_dataset_configs(dataset_name, scan_numbers):
-    """Update the processing pipeline for a dataset with new scans."""
+    """Append new scan numbers to an existing dataset's CHAP configurations.
+
+    Updates ``map_config.yaml`` by extending the ``spec_scans[0].scan_numbers``
+    list, and updates ``pipeline.yaml`` by adding a new update-stage entry
+    keyed by the current update index from application state.
+
+    :param dataset_name: Name of the dataset to update.
+    :type dataset_name: str
+    :param scan_numbers: SPEC scan numbers collected during this update.
+    :type scan_numbers: list[int]
+    """
     analysis_dir = Path(get_state().analysis_root) / dataset_name
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
