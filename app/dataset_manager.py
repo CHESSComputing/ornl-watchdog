@@ -2,11 +2,13 @@
 
 """Manages datasets"""
 
-import logging
+import csv
+import yaml
+from pathlib import Path
 
 from app import get_logger
 from app.config_writer import create_dataset_configs, update_dataset_configs
-from app.pipeline_manager import submit_pipeline
+from app.pipeline_manager import submit_setup, submit_update
 from app.state import get_state
 
 
@@ -19,8 +21,9 @@ def initialize_dataset(dataset_name):
     If *dataset_name* is already registered in application state, a
     ``newsample`` command is still sent (to reset SPEC context) but no
     new configs or pipeline jobs are created.  Otherwise, configs are
-    written and the ``"setup"`` pipeline is submitted inside a callback
-    that fires after SPEC acknowledges the ``newsample`` command.
+    written and the setup pipeline is submitted via the CHAP daemon
+    inside a callback that fires after SPEC acknowledges the
+    ``newsample`` command.
 
     :param dataset_name: Name of the new dataset / sample directory.
     :type dataset_name: str
@@ -28,7 +31,6 @@ def initialize_dataset(dataset_name):
 
     if dataset_name in get_state().datasets:
         logger.warning(f"Dataset already exists: {dataset_name}")
-        # Metadata arg for newsample should be 0 to suppress all prompts for manual metadata entry?
         get_state().spec.enqueue([f"newsample {dataset_name} 0"])
         return
 
@@ -37,18 +39,21 @@ def initialize_dataset(dataset_name):
     def after_newsample():
         """Callback executed by the SPEC worker after ``newsample`` completes.
 
-        Creates analysis configuration files, submits the setup pipeline,
-        registers the dataset in application state, and writes state to disk.
+        Creates analysis configuration files, submits the setup pipeline
+        via the CHAP daemon, registers the dataset in application state,
+        and writes state to disk.
         """
-        create_dataset_configs(dataset_name)
-        submit_pipeline(dataset_name, "setup")
+        create_dataset_configs(
+            dataset_name,
+            get_state().spec.spec_file, get_state().spec.scan_n
+        )
+        submit_setup(dataset_name)
         get_state().datasets[dataset_name] = {
             "current_update": 0,
         }
         get_state().write()
 
     get_state().spec.enqueue(
-        # Metadata arg for newsample should be 0 to suppress all prompts for manual metadata entry?
         [f"newsample {dataset_name} 0"],
         callback=after_newsample,
     )
@@ -59,8 +64,11 @@ def update_dataset(dataset_name, locations_csv):
 
     Parses *locations_csv* for ``(labx, labz)`` coordinate pairs, enqueues
     a :meth:`~app.spec_controller.SpecController.collect_point` command
-    sequence for each coordinate, updates the CHAP configuration files with
-    the resulting scan numbers, and submits an update pipeline job.
+    sequence for each coordinate.  After the last scan completes,
+    updates the CHAP configuration files, increments the update counter,
+    writes state to disk, and sends update requests to the CHAP daemon —
+    all within the final collect callback so that all SPEC scan numbers
+    are known before the daemon is contacted.
 
     :param dataset_name: Name of the dataset to update.
     :type dataset_name: str
@@ -68,42 +76,56 @@ def update_dataset(dataset_name, locations_csv):
         ``labx, labz`` motor positions.
     :type locations_csv: str or pathlib.Path
     """
-    import csv
-
     logger.info(f"Dataset '{dataset_name}' update detected: {locations_csv}")
 
     if dataset_name not in get_state().datasets:
         logger.warning(f"Dataset not found: {dataset_name}")
         return
 
-    # Parse the update file to extract labx, labz coordinates
+    # Parse new locations
     new_locations = []
     with open(locations_csv, "r") as f:
         reader = csv.reader(f)
-        # FIX will there be a header row?
         for row in reader:
             new_locations.append(row)
     logger.info(
         f"{locations_csv} contains {len(new_locations)} new locations."
     )
 
-    # Collect data for each new location and update the dataset configs
-    scan_numbers = []
-    def after_collect():
-        """Callback executed after each ``collect_point`` SPEC sequence.
+    # Record the number of scans already in the map before this update
+    # so we know which map-array indices the new scans correspond to.
+    analysis_dir = Path(get_state().analysis_root) / dataset_name
+    with open(analysis_dir / "map_config.yaml") as f:
+        existing_map_config = yaml.safe_load(f)
+    scan_start_idx = len(existing_map_config["spec_scans"][0]["scan_numbers"])
 
-        Appends the most recently completed SPEC scan number to
-        *scan_numbers* so it can be recorded in the map configuration.
+    # Collect data for each new location; all work (config updates,
+    # state writes, daemon calls) happens inside the final callback so
+    # that every SPEC scan number is known before processing begins.
+    scan_numbers = []
+    n = len(new_locations)
+
+    def make_after_collect(i):
+        """Return the per-scan callback for scan index *i*.
+
+        :param i: Zero-based index of this scan within the current
+            update batch.
+        :type i: int
+        :returns: Callback that appends the completed scan number and,
+            for the last scan, triggers config updates and daemon calls.
+        :rtype: callable
         """
-        scan_numbers.append(get_state().spec.scan_n)
-    for labx, labz in new_locations:
+        def after_collect():
+            scan_numbers.append(get_state().spec.scan_n)
+            if i == n - 1:
+                # All scans for this update are complete.
+                get_state().datasets[dataset_name]["current_update"] += 1
+                update_dataset_configs(dataset_name, scan_numbers)
+                submit_update(dataset_name, scan_numbers, scan_start_idx)
+                get_state().write()
+        return after_collect
+
+    for i, (labx, labz) in enumerate(new_locations):
         get_state().spec.collect_point(
-            dataset_name, labx, labz, callback=after_collect
+            dataset_name, labx, labz, callback=make_after_collect(i)
         )
-    get_state().datasets[dataset_name]["current_update"] += 1
-    update_dataset_configs(dataset_name, scan_numbers)
-    submit_pipeline(
-        dataset_name,
-        f"update_{get_state().datasets[dataset_name]['current_update']}"
-    )
-    get_state().write()
