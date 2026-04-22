@@ -5,6 +5,7 @@ import asyncio
 import logging
 import queue
 import threading
+import time
 
 from app import get_logger
 
@@ -69,6 +70,11 @@ class SpecController:
 
         self.client = None
         self.async_event_loop = asyncio.new_event_loop()
+        self._loop_thread = threading.Thread(
+            target=self.async_event_loop.run_forever,
+            daemon=True
+        )
+        self._loop_thread.start()
         self._connect()
 
         self.queue = queue.Queue()
@@ -93,33 +99,73 @@ class SpecController:
         :returns: The coroutine's return value, or the raised
             :exc:`Exception` instance if execution failed.
         """
-        # return
-        async def run():
-            async with asyncio.Timeout(self.spec_timeout):
-                future = asyncio.run_coroutine_threadsafe(
-                    coroutine(*coroutine_args, **coroutine_kwargs),
-                    self.async_event_loop,
-                )
-                try:
-                    result = future.result(timeout=self.spec_timeout)
-                    return result
-                except Exception as e:
-                    return e
-        return asyncio.run(run())
+        future = asyncio.run_coroutine_threadsafe(
+            coroutine(*coroutine_args, **coroutine_kwargs),
+            self.async_event_loop,
+        )
+        try:
+            return future.result(timeout=self.spec_timeout)
+        except Exception as e:
+            future.cancel()
+            return e
 
-    def _connect(self):
-        """Create and connect the ``pyspec`` client.
+    def _connect(self, max_retries=-1, retry_delay=5):
+        """Create and connect the ``pyspec`` client, retrying on failure.
 
         Imports :class:`pyspec.client.Client`, creates an instance pointed
-        at :attr:`spec_host`/:attr:`spec_port`, and enters its async context
-        manager via :meth:`run_with_timeout`.
+        at :attr:`spec_host`/:attr:`spec_port`, and attempts to enter its
+        async context manager (which opens the TCP connection and performs
+        the ``HELLO`` handshake).  Success is verified by checking
+        ``client._connection.is_connected`` after each attempt.
+
+        If a partial connection is established (TCP open but handshake
+        failed), the connection is cleanly exited before the next attempt.
+
+        :param max_retries: Maximum number of connection attempts. If
+            less than 0, infinte reties.
+        :type max_retries: int
+        :param retry_delay: Seconds to wait between attempts.
+        :type retry_delay: int or float
+        :raises ConnectionError: If all *max_retries* attempts fail.
         """
         from pyspec.client import Client
 
         logger.info("Initializing pyspec.client.Client")
         self.client = Client(host=self.spec_host, port=self.spec_port)
-        self.run_with_timeout(self.client.__aenter__)
-        logger.info("pyspec.client.Client connected")
+
+        attempt = 1
+        while attempt <= max_retries or max_retries < 0:
+            logger.info(
+                f"Connecting to SPEC at {self.spec_host}:{self.spec_port} "
+                f"(attempt {attempt}/{max_retries})"
+            )
+            result = self.run_with_timeout(self.client.__aenter__)
+
+            if not isinstance(result, Exception) and self.client._connection.is_connected:
+                logger.info("Connected to SPEC server")
+                return
+
+            if isinstance(result, Exception):
+                logger.warning(f"Connection attempt {attempt} raised: {result!r}")
+            else:
+                logger.warning(
+                    f"Connection attempt {attempt} failed: "
+                    f"is_connected={self.client._connection.is_connected}"
+                )
+
+            # Clean up any partial connection state before retrying
+            if self.client._connection.is_connected:
+                self.run_with_timeout(self.client.__aexit__, None, None, None)
+
+            attempt += 1
+            if attempt <= max_retries or max_retries < 0:
+                logger.info(f"Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+
+        raise ConnectionError(
+            f"Failed to connect to SPEC at {self.spec_host}:{self.spec_port} "
+            f"after {max_retries} attempt(s)"
+        )
 
     def enqueue(self, command_sequence, callback=None):
         """Add a SPEC command sequence to the processing queue.
@@ -137,15 +183,26 @@ class SpecController:
         self.queue.put((command_sequence, callback))
 
     def _send(self, command):
-        """Send a single SPEC command and log any errors.
+        """Send a single SPEC command, reconnecting first if the connection is lost.
+
+        Checks :attr:`pyspec._connection.connection.Connection.is_connected`
+        before each send.  If the connection is down, :meth:`_connect` is
+        called to re-establish it before proceeding.
 
         :param command: SPEC command string to execute.
         :type command: str
         """
+        if not self.client._connection.is_connected:
+            logger.warning(
+                f"SPEC connection lost before sending '{command}', "
+                "attempting to reconnect"
+            )
+            self._connect()
+
         logger.info(f"Sending SPEC command: {command}")
         result = self.run_with_timeout(self.client.exec, command)
         if isinstance(result, Exception):
-            logger.error(f"{command}: result")
+            logger.error(f"{command}: {result}")
 
     def _worker_loop(self):
         """Continuously drain the command queue in a background thread.
@@ -161,7 +218,9 @@ class SpecController:
                 for cmd in commands:
                     self._send(cmd)
                 if callback:
-                    logger.info(f"Running callback after '{cmd}'")
+                    logger.info(
+                        f"Running callback after {', '.join(['\''+cmd+'\'' for cmd in commands])}"
+                    )
                     callback()
             except Exception as e:
                 logger.error(e)
@@ -207,3 +266,5 @@ class SpecController:
         result = self.run_with_timeout(self._scan_n.get)
         if isinstance(result, Exception):
             logger.error(result)
+        logger.debug(f"Got SCAN_N: {result}")
+        return result
