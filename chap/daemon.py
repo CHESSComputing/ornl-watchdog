@@ -211,8 +211,10 @@ def _get_map_processor(data):
     return proc
 
 
+import queue as _queue
 import threading
-_run_lock = threading.Lock()   # serialize runs; pipeline is not thread-safe
+
+_task_queue = _queue.Queue()
 
 
 def update_raw(map_config_filename: str,
@@ -249,26 +251,25 @@ def update_raw(map_config_filename: str,
         ``RUN_CFG.outputdir``).
     :type map_data_filename: str
     """
-    with _run_lock:
-        # 1. Read map config YAML (filename may vary per call)
-        _MAP_YAML_READER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.inputdir, map_config_filename)))
-        map_cfg = _MAP_YAML_READER.read()
-        data = [PipelineData(
-            name='YAMLReader', data=map_cfg,
-            schema='common.models.map.MapConfig')]
+    # 1. Read map config YAML (filename may vary per call)
+    _MAP_YAML_READER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.inputdir, map_config_filename)))
+    map_cfg = _MAP_YAML_READER.read()
+    data = [PipelineData(
+        name='YAMLReader', data=map_cfg,
+        schema='common.models.map.MapConfig')]
 
-        # 2. Process one scan slice
-        abs_spec_file = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.inputdir, spec_file)))
-        proc = _get_map_slice_processor(data, abs_spec_file, scan_number)
-        result = proc.process(data)
-        data.append(PipelineData(name='MapSliceProcessor', data=result))
+    # 2. Process one scan slice
+    abs_spec_file = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.inputdir, spec_file)))
+    proc = _get_map_slice_processor(data, abs_spec_file, scan_number)
+    result = proc.process(data)
+    data.append(PipelineData(name='MapSliceProcessor', data=result))
 
-        # 3. Write results
-        _MAP_VALUES_WRITER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.outputdir, map_data_filename)))
-        _MAP_VALUES_WRITER.write(data, filename=_MAP_VALUES_WRITER.filename)
+    # 3. Write results
+    _MAP_VALUES_WRITER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.outputdir, map_data_filename)))
+    _MAP_VALUES_WRITER.write(data, filename=_MAP_VALUES_WRITER.filename)
 
 
 def update_strain(filename: str, path_prefix: str,
@@ -317,33 +318,32 @@ def update_strain(filename: str, path_prefix: str,
         as the write index.
     :type idx_slice: CHAP.common.models.IndexSliceConfig
     """
-    with _run_lock:
-        # Fresh data list each time; deep-copy so get_config(remove=True)
-        # doesn't drain the cached seeds
-        data = deepcopy(_INIT_DATA)
+    # Fresh data list each time; deep-copy so get_config(remove=True)
+    # doesn't drain the cached seeds
+    data = deepcopy(_INIT_DATA)
 
-        # 1. Read raw input data
-        _READER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.inputdir, filename)))
-        _READER.scan_number = scan_number
-        nxroot = _READER.read()
-        data.append(PipelineData(name='SliceNXdataReader', data=nxroot))
+    # 1. Read raw input data
+    _READER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.inputdir, filename)))
+    _READER.scan_number = scan_number
+    nxroot = _READER.read()
+    data.append(PipelineData(name='SliceNXdataReader', data=nxroot))
 
-        # 2. Process: new instance per run (process() mutates data list)
-        proc = get_StrainAnalysisProcessor()
-        result = proc.process(data)
+    # 2. Process: new instance per run (process() mutates data list)
+    proc = get_StrainAnalysisProcessor()
+    result = proc.process(data)
 
-        # Normalize tuple-or-single result into data list
-        for r in (result if isinstance(result, tuple) else [result]):
-            data.append(r if isinstance(r, PipelineData) else
-                        PipelineData(data=r))
+    # Normalize tuple-or-single result into data list
+    for r in (result if isinstance(result, tuple) else [result]):
+        data.append(r if isinstance(r, PipelineData) else
+                    PipelineData(data=r))
 
-        # 3. Write results
-        _WRITER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.outputdir, filename)))
-        _WRITER.path_prefix = path_prefix
-        _WRITER.idx_slice = idx_slice
-        _WRITER.write(data, filename=_WRITER.filename)
+    # 3. Write results
+    _WRITER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.outputdir, filename)))
+    _WRITER.path_prefix = path_prefix
+    _WRITER.idx_slice = idx_slice
+    _WRITER.write(data, filename=_WRITER.filename)
 
 
 def setup_raw(map_config_filename: str, map_data_filename: str):
@@ -375,25 +375,24 @@ def setup_raw(map_config_filename: str, map_data_filename: str):
         to ``RUN_CFG.outputdir``).
     :type map_data_filename: str
     """
-    with _run_lock:
-        # 1. Read map config YAML
-        _MAP_YAML_READER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.inputdir, map_config_filename)))
-        map_cfg = _MAP_YAML_READER.read()
-        data = [PipelineData(
-            name='YAMLReader', data=map_cfg,
-            schema='common.models.map.MapConfig')]
+    # 1. Read map config YAML
+    _MAP_YAML_READER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.inputdir, map_config_filename)))
+    map_cfg = _MAP_YAML_READER.read()
+    data = [PipelineData(
+        name='YAMLReader', data=map_cfg,
+        schema='common.models.map.MapConfig')]
 
-        # 2. Build placeholder NeXus map structure (no detector data)
-        proc = _get_map_processor([*data, _DETECTORS_CONFIG])
-        result = proc.process(data, fill_data=False)
-        data.append(PipelineData(name='MapProcessor', data=result))
+    # 2. Build placeholder NeXus map structure (no detector data)
+    proc = _get_map_processor([*data, _DETECTORS_CONFIG])
+    result = proc.process(data, fill_data=False)
+    data.append(PipelineData(name='MapProcessor', data=result))
 
-        # 3. Write map container
-        _MAP_NX_WRITER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.outputdir, map_data_filename)))
-        _MAP_NX_WRITER.nxpath = None
-        _MAP_NX_WRITER.write(data)
+    # 3. Write map container
+    _MAP_NX_WRITER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.outputdir, map_data_filename)))
+    _MAP_NX_WRITER.nxpath = None
+    _MAP_NX_WRITER.write(data)
 
 
 def setup_strain(filename: str, nxpath: str):
@@ -431,40 +430,39 @@ def setup_strain(filename: str, nxpath: str):
         analysis group will be written.
     :type nxpath: str
     """
-    with _run_lock:
-        # Fresh data list with cached YAML configs
-        data = deepcopy(_INIT_DATA)
+    # Fresh data list with cached YAML configs
+    data = deepcopy(_INIT_DATA)
 
-        # 1. Read full NXS file
-        _NX_READER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.inputdir, filename)))
-        nxroot = _NX_READER.read()
-        data.append(PipelineData(name='NexusReader', data=nxroot))
+    # 1. Read full NXS file
+    _NX_READER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.inputdir, filename)))
+    nxroot = _NX_READER.read()
+    data.append(PipelineData(name='NexusReader', data=nxroot))
 
-        # 2. Process: setup pass (setup=True, update=False)
-        global _PROC_LOGGER
-        if _PROC_LOGGER is None:
-            proc = StrainAnalysisProcessor(
-                data=data, modelmetaclass=StrainAnalysisProcessor,
-                **_SETUP_STRAIN_PROC_ARGS,
-            )
-            _PROC_LOGGER = proc.logger
-        else:
-            proc = StrainAnalysisProcessor(
-                data=data, modelmetaclass=StrainAnalysisProcessor,
-                logger=_PROC_LOGGER,
-                **_SETUP_STRAIN_PROC_ARGS,
-            )
-        result = proc.process(data)
-        for r in (result if isinstance(result, tuple) else [result]):
-            data.append(r if isinstance(r, PipelineData) else
-                        PipelineData(data=r))
+    # 2. Process: setup pass (setup=True, update=False)
+    global _PROC_LOGGER
+    if _PROC_LOGGER is None:
+        proc = StrainAnalysisProcessor(
+            data=data, modelmetaclass=StrainAnalysisProcessor,
+            **_SETUP_STRAIN_PROC_ARGS,
+        )
+        _PROC_LOGGER = proc.logger
+    else:
+        proc = StrainAnalysisProcessor(
+            data=data, modelmetaclass=StrainAnalysisProcessor,
+            logger=_PROC_LOGGER,
+            **_SETUP_STRAIN_PROC_ARGS,
+        )
+    result = proc.process(data)
+    for r in (result if isinstance(result, tuple) else [result]):
+        data.append(r if isinstance(r, PipelineData) else
+                    PipelineData(data=r))
 
-        # 3. Append strain analysis group to NXS file
-        _STRAIN_NX_WRITER.filename = os.path.normpath(os.path.realpath(
-            os.path.join(RUN_CFG.outputdir, filename)))
-        _STRAIN_NX_WRITER.nxpath = nxpath
-        _STRAIN_NX_WRITER.write(data)
+    # 3. Append strain analysis group to NXS file
+    _STRAIN_NX_WRITER.filename = os.path.normpath(os.path.realpath(
+        os.path.join(RUN_CFG.outputdir, filename)))
+    _STRAIN_NX_WRITER.nxpath = nxpath
+    _STRAIN_NX_WRITER.write(data)
 
 
 # import time
@@ -489,6 +487,41 @@ logging.basicConfig(
     format='%(asctime)s: %(name)-20s (L%(lineno)d): %(levelname)s: %(message)s',
 )
 app = Flask(__name__)
+
+
+def _worker():
+    while True:
+        task, args, kwargs = _task_queue.get()
+        try:
+            task(*args, **kwargs)
+        except Exception as exc:
+            app.logger.error(f'Task failed: {exc}')
+        finally:
+            _task_queue.task_done()
+
+threading.Thread(target=_worker, daemon=True).start()
+
+
+def _do_setup(map_config_filename, map_data_filename, filename, nxpath):
+    app.logger.debug(f'setup_raw({map_config_filename}, {map_data_filename})')
+    setup_raw(map_config_filename, map_data_filename)
+    app.logger.debug(f'setup_strain({filename}, {nxpath})')
+    setup_strain(filename, nxpath)
+    app.logger.info('Done with setup')
+
+
+def _do_update(map_config_filename, spec_file, scan_number, map_data_filename,
+               filename, path_prefix, idx_slice):
+    app.logger.debug(
+        f'update_raw({map_config_filename}, {spec_file}, '
+        f'{scan_number}, {map_data_filename})')
+    update_raw(map_config_filename, spec_file, scan_number, map_data_filename)
+    app.logger.debug(
+        f'update_strain({filename}, {path_prefix}, '
+        f'{scan_number}, {idx_slice})')
+    update_strain(filename, path_prefix, scan_number, idx_slice)
+    app.logger.info('Done with update')
+
 
 @app.route('/setup', methods=['POST'])
 def setup():
@@ -521,17 +554,9 @@ def setup():
     if missing:
         return jsonify({'error': f'Missing required parameters: {missing}'}), 400
 
-    app.logger.info(f'Setup for dataset {filename}')
-    try:
-        app.logger.debug(f'setup_raw({map_config_filename}, {map_data_filename})')
-        setup_raw(map_config_filename, map_data_filename)
-        app.logger.debug(f'setup_strain({filename}, {nxpath})')
-        setup_strain(filename, nxpath)
-    except Exception as exc:
-        app.logger.error(exc)
-        return jsonify({'error': str(exc)}), 500
-    app.logger.info('Done with setup')
-    return jsonify({'status': 'ok'})
+    app.logger.info(f'Queuing setup for dataset {filename}')
+    _task_queue.put((_do_setup, (map_config_filename, map_data_filename, filename, nxpath), {}))
+    return jsonify({'status': 'queued'}), 202
 
 
 @app.route('/update', methods=['POST'])
@@ -582,21 +607,10 @@ def update():
     except Exception as exc:
         return jsonify({'error': f'Invalid parameter value: {exc}'}), 400
 
-    app.logger.info(f'Updating dataset {filename}, scan {scan_number}')
-    try:
-        app.logger.debug(
-            f'update_raw({map_config_filename}, {spec_file}, '
-            f'{scan_number}, {map_data_filename})')
-        update_raw(map_config_filename, spec_file, scan_number, map_data_filename)
-        app.logger.debug(
-            f'update_strain({filename}, {path_prefix}, '
-            f'{scan_number}, {idx_slice})')
-        update_strain(filename, path_prefix, scan_number, idx_slice)
-    except Exception as exc:
-        app.logger.error(exc)
-        return jsonify({'error': str(exc)}), 500
-    app.logger.info('Done with update')
-    return jsonify({'status': 'ok'})
+    app.logger.info(f'Queuing update for dataset {filename}, scan {scan_number}')
+    _task_queue.put((_do_update, (map_config_filename, spec_file, scan_number,
+                                  map_data_filename, filename, path_prefix, idx_slice), {}))
+    return jsonify({'status': 'queued'}), 202
 
 
 if __name__ == "__main__":
