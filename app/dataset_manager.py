@@ -45,7 +45,8 @@ def initialize_dataset(dataset_name):
         """
         create_dataset_configs(
             dataset_name,
-            get_state().spec.spec_file, get_state().spec.scan_n
+            get_state().spec.spec_file,
+            get_state().spec.scan_n
         )
         submit_setup(dataset_name)
         get_state().datasets[dataset_name] = {

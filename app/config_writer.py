@@ -12,7 +12,7 @@ from app.state import get_state
 
 logger = get_logger("config_writer")
 
-def create_dataset_configs(dataset_name):
+def create_dataset_configs(dataset_name, spec_file, scan_number):
     """Create CHAP configuration files for a new dataset.
 
     Creates ``<analysis_root>/<dataset_name>/`` if it does not exist, then
@@ -32,30 +32,79 @@ def create_dataset_configs(dataset_name):
 
     if not map_yaml.exists():
         map_config = {
+            "validate_data_present": False,
             "title": dataset_name,
             "station": "id1a3",
             "experiment_type": "EDD",
+            "sample": {
+                "name": dataset_name,
+                "description": ""
+            },
             "spec_scans": [
                 {
-                    "spec_file": None, # FILL IN THIS FILENAME
-                    "scan_numbers": []
+                    "spec_file": spec_file,
+                    "scan_numbers": [scan_number]
                 }
+            ],
+            "scalar_data": [
+                {"label": "SCAN_N", "units": "n/a",
+                 "data_type": "smb_par", "name": "SCAN_N"},
+                {"label": "rsgap_size", "units": "mm",
+                 "data_type": "smb_par", "name": "rsgap_size"},
+                {"label": "x_effective", "units": "mm",
+                 "data_type": "smb_par", "name": "x_effective"},
+                {"label": "z_effective", "units": "mm",
+                 "data_type": "smb_par", "name": "z_effective"},
             ],
             "independent_dimensions": [
                 {
                     "label": "labx",
                     "units": "mm",
-                    "data_type": "spec_motor",
+                    "data_type": "smb_par",
                     "name": get_state().labx_motor
+                },
+                {
+                    "label": "laby",
+                    "units": "mm",
+                    "data_type": "spec_motor",
+                    "name": "laby"
                 },
                 {
                     "label": "labz",
                     "units": "mm",
                     "data_type": "spec_motor",
                     "name": get_state().labz_motor
+                },
+                {
+                    "label": "ometotal",
+                    "units": "degrees",
+                    "data_type": "smb_par",
+                    "name": "ometotal"
                 }
             ],
-            "scalar_data": [] # FILL IN THIS LIST
+            "presample_intensity": {
+                "label": "presample_intensity",
+                "units": "counts",
+                "data_type": "scan_column",
+                "name": "a3ic1"
+            },
+            "dwell_time_actual": {
+                "label": "dwell_time_actual",
+                "units": "s",
+                "data_type": "scan_column",
+                "name": "sec"
+            },
+            "postsample_intensity": {
+                "label": "postsample_intensity",
+                "units": "counts",
+                "data_type": "scan_column",
+                "name": "diode"
+            },
+            "attrs": {
+                "scan_type": 0,
+                "config_id": 1,
+                "dataset_id": 1
+            }
         }
         with open(map_yaml, "w") as f:
             logger.debug(f"Writing {map_yaml}")
