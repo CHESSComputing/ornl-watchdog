@@ -342,6 +342,8 @@ def update_strain(filename: str, path_prefix: str,
     _WRITER.filename = os.path.normpath(os.path.realpath(
         os.path.join(RUN_CFG.outputdir, filename)))
     _WRITER.path_prefix = path_prefix
+    if isinstance(idx_slice, dict):
+        idx_slice = IndexSliceConfig(**idx_slice)
     _WRITER.idx_slice = idx_slice
     _WRITER.write(data, filename=_WRITER.filename)
 
