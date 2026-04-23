@@ -7,3 +7,5 @@ dependencies:
 - pip:
   - chess-pyspec
   - watchdog
+  - urllib3
+  - requests
