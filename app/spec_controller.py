@@ -83,6 +83,8 @@ class SpecController:
             daemon=True
         )
         self._scan_n = self.client.var("SCAN_N")
+        self._outfiles = self.client.var("OUTFILES")
+        self._datafile = self.client.var("DATAFILE")
 
         self.worker.start()
 
@@ -268,3 +270,25 @@ class SpecController:
             logger.error(result)
         logger.debug(f"Got SCAN_N: {result}")
         return result
+
+    @property
+    def outfiles(self):
+        logger.info(f"Getting OUTFILES from SPEC")
+        result = self.run_with_timeout(self._outfiles.get)
+        if isinstance(result, Exception):
+            logger.error(result)
+        logger.debug(f"Got OUTFILES: {result}")
+        return result
+
+    @property
+    def datafile(self):
+        logger.info(f"Getting DATAFILE from SPEC")
+        result = self.run_with_timeout(self._datafile.get)
+        if isinstance(result, Exception):
+            logger.error(result)
+        logger.debug(f"Got DATAFILE: {result}")
+        return result
+
+    @property
+    def spec_file(self):
+        return self.outfiles[(self.datafile, "path")].replace("daq", "raw")
