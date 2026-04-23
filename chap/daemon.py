@@ -198,7 +198,7 @@ def _get_map_processor(data):
     """
     global _MAP_PROC_LOGGER
     kwargs = dict(
-        data=[*data, _DETECTOR_CONFIG], modelmetaclass=MapProcessor,
+        data=[*data, _DETECTORS_CONFIG], modelmetaclass=MapProcessor,
         remove_constant_dims=False, num_proc=1,
         # detector_config={'detectors': [{'id': 0}]},
         **RUN_CFG.model_dump(),
@@ -385,7 +385,7 @@ def setup_raw(map_config_filename: str, map_data_filename: str):
             schema='common.models.map.MapConfig')]
 
         # 2. Build placeholder NeXus map structure (no detector data)
-        proc = _get_map_processor([*data, _DETECTOR_CONFIG])
+        proc = _get_map_processor([*data, _DETECTORS_CONFIG])
         result = proc.process(data, fill_data=False)
         data.append(PipelineData(name='MapProcessor', data=result))
 
