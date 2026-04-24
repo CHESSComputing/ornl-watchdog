@@ -221,7 +221,7 @@ class SpecController:
                     self._send(cmd)
                 if callback:
                     logger.info(
-                        f"Running callback after {', '.join(['\''+cmd+'\'' for cmd in commands])}"
+                        f"Running callback after {', '.join([cmd for cmd in commands])}"
                     )
                     callback()
             except Exception as e:
