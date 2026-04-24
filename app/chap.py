@@ -18,34 +18,11 @@ from CHAP.pipeline import PipelineData
 from CHAP.models import RunConfig
 
 from app import get_logger
+from app.state import get_state
 
 logger = get_logger(__name__)
 
-# Global run config
-RUN_CFG = RunConfig(log_level='debug')
-def update_runcfg(inputdir, outputdir):
-    """Update the global run configuration with new I/O directories.
 
-    Reinitializes ``RUN_CFG`` so that all subsequent pipeline calls
-    resolve relative filenames against the new directories.
-
-    :param inputdir: Absolute path to the input directory.
-    :type inputdir: str
-    :param outputdir: Absolute path to the output directory.
-    :type outputdir: str
-    """
-    global RUN_CFG
-    RUN_CFG = RunConfig(
-        inputdir=inputdir,
-        outputdir=outputdir,
-        log_level='debug'
-    )
-update_runcfg(
-    inputdir='/nfs/chess/scratch/user/kls286/edd/ornl',
-    outputdir='/nfs/chess/scratch/user/kls286/edd/ornl',
-)
-
-# Pre-read the static YAML configs once; cache raw dicts
 def _read_yaml(filename, schema):
     """Read a YAML file and return a tagged ``PipelineData`` object.
 
@@ -64,49 +41,74 @@ def _read_yaml(filename, schema):
     :rtype: CHAP.pipeline.PipelineData
     """
     logger.info(f"Reading {filename}")
-    r = YAMLReader(
-        filename=filename, schema=schema, **RUN_CFG.model_dump()
-    )
+    r = YAMLReader(filename=str(filename), schema=schema)
     return PipelineData(
         name='YAMLReader', data=r.read(), schema=schema
     )
 
-_STRAIN_CFG = _read_yaml(
-    'strain_analysis_config.yaml',
-    'edd.models.StrainAnalysisConfig'
-)
-_TTH_CFG = _read_yaml(
-    'tth_calibration_result.yaml',
-    'edd.models.MCATthCalibrationConfig'
-)
-_DETECTORS_CONFIG = _read_yaml(
-    'xps23_config.yaml',
-    'common.models.map.DetectorConfig'
-)
-_INIT_DATA = [_STRAIN_CFG, _TTH_CFG]
+
+def load_data():
+    _state = get_state()
+    if _state is not None:
+        global _STRAIN_CFG, _TTH_CFG, _DETECTORS_CONFIG
+        _STRAIN_CFG = _read_yaml(
+            _state.strain_analysis_yaml,
+            'edd.models.StrainAnalysisConfig'
+        )
+        _TTH_CFG = _read_yaml(
+            _state.calibration_yaml,
+            'edd.models.MCATthCalibrationConfig'
+        )
+        _DETECTORS_CONFIG = _read_yaml(
+            _state.detectors_yaml,
+            'common.models.map.DetectorConfig'
+        )
+
+def _strain_cfg():
+    try:
+        global _STRAIN_CFG
+        return _STRAIN_CFG
+    except Exception as exc:
+        logger.warning(exc)
+        return None
+
+def _tth_cfg():
+    try:
+        global _TTH_CFG
+        return _TTH_CFG
+    except Exception as exc:
+        logger.warning(exc)
+        return None
+
+def _detectors_cfg():
+    try:
+        global _DETECTORS_CFG
+        return _DETECTORS_CFG
+    except Exception as exc:
+        logger.warning(exc)
+        return None
+
+def _init_data():
+    return [_strain_cfg(), _tth_cfg()]
 
 # Fixed args for the processor and writer (everything except the
 # per-run fields)
 _READER_ARGS = dict(
     filename='data.nxs',
     scan_number=0,
-    **RUN_CFG.model_dump()
 )
 _PROC_ARGS = dict(
     standalone=True, setup=False, update=True,
     find_peaks=True, skip_animation=True, save_figures=False,
-    **RUN_CFG.model_dump()
 )
 _SETUP_STRAIN_PROC_ARGS = dict(
     standalone=True, setup=True, update=False,
     find_peaks=True, skip_animation=True, save_figures=False,
-    **RUN_CFG.model_dump()
 )
 _WRITER_ARGS = dict(
     filename='data.nxs',
     path_prefix='/testflight-0212-b_dataset1_strain_analysis/',
     resize_axis=0, force_overwrite=True,
-    **RUN_CFG.model_dump()
 )
 
 # Module-level singletons; filenames are mutated per call to avoid
@@ -114,16 +116,21 @@ _WRITER_ARGS = dict(
 # / outputdir once at construction time).
 _READER = SliceNXdataReader(**_READER_ARGS)
 _WRITER = NexusValuesWriter(**_WRITER_ARGS)
-_MAP_YAML_READER = YAMLReader(filename='map_config.yaml', **RUN_CFG.model_dump(\
-))
+_MAP_YAML_READER = YAMLReader(
+    filename='map_config.yaml',
+)
 _MAP_VALUES_WRITER = NexusValuesWriter(
     filename='data.nxs', resize_axis=0, force_overwrite=True,
-    **RUN_CFG.model_dump())
-_NX_READER = NexusReader(filename='data.nxs', **RUN_CFG.model_dump())
+)
+_NX_READER = NexusReader(
+    filename='data.nxs',
+)
 _MAP_NX_WRITER = NexusWriter(
-    filename='data.nxs', force_overwrite=True, **RUN_CFG.model_dump())
+    filename='data.nxs', force_overwrite=True,
+)
 _STRAIN_NX_WRITER = NexusWriter(
-    filename='data.nxs', force_overwrite=True, **RUN_CFG.model_dump())
+    filename='data.nxs', force_overwrite=True,
+)
 
 # Cached loggers; avoids adding duplicate handlers on every processor
 # instantiation (loggers are global singletons keyed by class name).
@@ -154,7 +161,6 @@ def _get_map_slice_processor(data, spec_file, scan_number):
         data=data, modelmetaclass=MapSliceProcessor,
         spec_file=spec_file, scan_number=scan_number,
         detectors=_DETECTORS_CONFIG["data"]["detectors"],
-        **RUN_CFG.model_dump(),
     )
     if _MAP_SLICE_PROC_LOGGER is None:
         proc = MapSliceProcessor(**kwargs)
@@ -179,10 +185,8 @@ def _get_map_processor(data):
     """
     global _MAP_PROC_LOGGER
     kwargs = dict(
-        data=[*data, _DETECTORS_CONFIG], modelmetaclass=MapProcessor,
+        data=[*data, _detectors_config()], modelmetaclass=MapProcessor,
         remove_constant_dims=False, num_proc=1,
-        # detector_config={'detectors': [{'id': 0}]},
-        **RUN_CFG.model_dump(),
     )
     if _MAP_PROC_LOGGER is None:
         proc = MapProcessor(**kwargs)
@@ -196,7 +200,7 @@ def _get_strain_analysis_processor():
     """Return a fresh ``StrainAnalysisProcessor`` configured for the
     ``update`` (not ``setup``) pass.
 
-    Passes ``data=_INIT_DATA`` and ``modelmetaclass`` so that pydantic's
+    Passes ``data=_init_data()`` and ``modelmetaclass`` so that pydantic's
     ``validate_processor_before`` auto-populates ``config`` from the
     cached ``StrainAnalysisConfig`` pipeline data.  Reuses the cached
     logger after the first instantiation to avoid adding duplicate log
@@ -208,14 +212,14 @@ def _get_strain_analysis_processor():
     global _PROC_LOGGER
     if _PROC_LOGGER is None:
         proc = StrainAnalysisProcessor(
-            data=_INIT_DATA,
+            data=_init_data(),
             modelmetaclass=StrainAnalysisProcessor,
             **_PROC_ARGS,
         )
         _PROC_LOGGER = proc.logger
     else:
         proc = StrainAnalysisProcessor(
-            data=_INIT_DATA,
+            data=_init_data(),
             modelmetaclass=StrainAnalysisProcessor,
             logger=_PROC_LOGGER,
             **_PROC_ARGS,
@@ -253,8 +257,7 @@ def setup_raw(map_config_filename: str, map_data_filename: str):
     :type map_data_filename: str
     """
     # 1. Read map config YAML
-    _MAP_YAML_READER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.inputdir, map_config_filename)))
+    _MAP_YAML_READER.filename = map_config_filename
     map_cfg = _MAP_YAML_READER.read()
     data = [PipelineData(
         name='YAMLReader', data=map_cfg,
@@ -266,8 +269,7 @@ def setup_raw(map_config_filename: str, map_data_filename: str):
     data.append(PipelineData(name='MapProcessor', data=result))
 
     # 3. Write map container
-    _MAP_NX_WRITER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.outputdir, map_data_filename)))
+    _MAP_NX_WRITER.filename = map_data_filename
     _MAP_NX_WRITER.nxpath = None
     _MAP_NX_WRITER.write(data)
 
@@ -307,12 +309,11 @@ def setup_strain(filename: str, nxpath: str):
         analysis group will be written.
     :type nxpath: str
     """
-    # Fresh data list with cached YAML configs
-    data = deepcopy(_INIT_DATA)
+    # Fresh data list each time
+    data = _init_data()
 
     # 1. Read full NXS file
-    _NX_READER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.inputdir, filename)))
+    _NX_READER.filename = filename
     nxroot = _NX_READER.read()
     data.append(PipelineData(name='NexusReader', data=nxroot))
 
@@ -336,8 +337,7 @@ def setup_strain(filename: str, nxpath: str):
                     PipelineData(data=r))
 
     # 3. Append strain analysis group to NXS file
-    _STRAIN_NX_WRITER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.outputdir, filename)))
+    _STRAIN_NX_WRITER.filename = filename
     _STRAIN_NX_WRITER.nxpath = nxpath
     _STRAIN_NX_WRITER.write(data)
 
@@ -378,23 +378,19 @@ ight-0212-b/spec.log
     :type map_data_filename: str
     """
     # 1. Read map config YAML (filename may vary per call)
-    _MAP_YAML_READER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.inputdir, map_config_filename)))
+    _MAP_YAML_READER.filename = map_config_filename
     map_cfg = _MAP_YAML_READER.read()
     data = [PipelineData(
         name='YAMLReader', data=map_cfg,
         schema='common.models.map.MapConfig')]
 
     # 2. Process one scan slice
-    abs_spec_file = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.inputdir, spec_file)))
-    proc = _get_map_slice_processor(data, abs_spec_file, scan_number)
+    proc = _get_map_slice_processor(data, spec_file, scan_number)
     result = proc.process(data)
     data.append(PipelineData(name='MapSliceProcessor', data=result))
 
     # 3. Write results
-    _MAP_VALUES_WRITER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.outputdir, map_data_filename)))
+    _MAP_VALUES_WRITER.filename = map_data_filename
     _MAP_VALUES_WRITER.write(data, filename=_MAP_VALUES_WRITER.filename)
 
 
@@ -444,13 +440,11 @@ def update_strain(filename: str, path_prefix: str,
         as the write index.
     :type idx_slice: CHAP.common.models.IndexSliceConfig
     """
-    # Fresh data list each time; deep-copy so get_config(remove=True)
-    # doesn't drain the cached seeds
-    data = deepcopy(_INIT_DATA)
+    # Fresh data list each time
+    data = _init_data()
 
     # 1. Read raw input data
-    _READER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.inputdir, filename)))
+    _READER.filename = filename
     _READER.scan_number = scan_number
     nxroot = _READER.read()
     data.append(PipelineData(name='SliceNXdataReader', data=nxroot))
@@ -465,8 +459,7 @@ def update_strain(filename: str, path_prefix: str,
                     PipelineData(data=r))
 
     # 3. Write results
-    _WRITER.filename = os.path.normpath(os.path.realpath(
-        os.path.join(RUN_CFG.outputdir, filename)))
+    _WRITER.filename = filename
     _WRITER.path_prefix = path_prefix
     if isinstance(idx_slice, dict):
         idx_slice = IndexSliceConfig(**idx_slice)

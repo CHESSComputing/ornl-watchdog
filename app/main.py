@@ -11,6 +11,7 @@ import time
 from watchdog.observers import Observer
 
 from app import get_logger
+from app.chap import load_data
 from app.state import load_state, get_state
 from app.watcher import DatasetWatcher
 
@@ -27,6 +28,9 @@ def main():
     :raises FileNotFoundError: If the configured ``watch_root`` directory
         does not exist on the filesystem.
     """
+    # Load constant CHAP data
+    load_data()
+
     # Run watchdog daemon
     if not os.path.isdir(get_state().watch_root):
         logger.error(f"Directory {get_state().watch_root} not found")
