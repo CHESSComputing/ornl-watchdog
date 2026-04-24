@@ -246,7 +246,7 @@ class SpecController:
         :type callback: callable or None
         """
         commands = [
-            f"newsample {dataset}",
+            f"newsample \"{dataset}\" 0",
             f"mv {self.labx_motor} {labx}",
             f"mv {self.labz_motor} {labz}",
             f"tseries {self.tseries_npts} {self.tseries_exposure}"

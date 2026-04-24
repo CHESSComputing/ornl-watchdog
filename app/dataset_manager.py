@@ -31,7 +31,7 @@ def initialize_dataset(dataset_name):
 
     if dataset_name in get_state().datasets:
         logger.warning(f"Dataset already exists: {dataset_name}")
-        get_state().spec.enqueue([f"newsample {dataset_name} 0"])
+        get_state().spec.enqueue([f"newsample \"{dataset_name}\" 0"])
         return
 
     logger.info(f"Initializing dataset: {dataset_name}")
@@ -55,7 +55,7 @@ def initialize_dataset(dataset_name):
         get_state().write()
 
     get_state().spec.enqueue(
-        [f"newsample {dataset_name} 0"],
+        [f"newsample \"{dataset_name}\" 0"],
         callback=after_newsample,
     )
 
