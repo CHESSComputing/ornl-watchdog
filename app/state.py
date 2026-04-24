@@ -91,9 +91,6 @@ class StateConfig(BaseModel):
     :vartype calibration_yaml: pathlib.Path
     :ivar strain_analysis_yaml: Path to strain analysis configuration file.
     :vartype strain_analysis_yaml: pathlib.Path
-    :ivar daemon_url: Base URL of the running ``chap_update_daemon``
-        Flask application (e.g. ``'http://localhost:5000'``).
-    :vartype daemon_url: str
     :ivar datasets: Mapping of dataset name to per-dataset runtime state.
     :vartype datasets: dict
     """
@@ -128,9 +125,6 @@ class StateConfig(BaseModel):
     strain_analysis_yaml: Path = Field(
         default='/nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<btr>/strain_analysis_config.yaml'
     )
-
-    # CHAP update daemon
-    daemon_url: str = Field(default='http://localhost:5000')
 
     datasets: dict = {}
 
