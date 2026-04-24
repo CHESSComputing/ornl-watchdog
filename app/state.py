@@ -87,6 +87,8 @@ class StateConfig(BaseModel):
     :vartype watch_root: pathlib.Path
     :ivar analysis_root: Root directory for CHAP analysis outputs.
     :vartype analysis_root: pathlib.Path
+    :ivar detectors_yaml: Path to EDD detector configuration file.
+    :vartype detectors_yaml: pathlib.Path
     :ivar calibration_yaml: Path to EDD calibration configuration file.
     :vartype calibration_yaml: pathlib.Path
     :ivar strain_analysis_yaml: Path to strain analysis configuration file.
@@ -114,10 +116,12 @@ class StateConfig(BaseModel):
     watch_root: Path = Field(
         default='/nfs/chess/raw/<cycle>/<station>/<btr>/autonomous_experiment/'
     )
-
     # Analysis settings
     analysis_root: Path = Field(
         default='nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<btr>'
+    )
+    detectors_yaml: Path = Field(
+        default='/nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<btr>/xps23_config.yaml'
     )
     calibration_yaml: Path = Field(
         default='/nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<btr>/calibration_config.yaml'
