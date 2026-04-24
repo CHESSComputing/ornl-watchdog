@@ -88,7 +88,15 @@ def update_dataset(dataset_name, locations_csv):
     with open(locations_csv, "r") as f:
         reader = csv.reader(f)
         for row in reader:
-            new_locations.append(row)
+            if len(row) != 2:
+                continue
+            logger.debug(f"row: {row}")
+            try:
+                _row = [int(x.strip()) for x in row]
+                new_locations.append(_row)
+                logger.info(f"Got location: {_row}")
+            except Exception as exc:
+                logger.warning(f"Can't get location: {exc!r}")
     logger.info(
         f"{locations_csv} contains {len(new_locations)} new locations."
     )
