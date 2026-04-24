@@ -24,11 +24,13 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
         subdirectory name and as the map title.
     :type dataset_name: str
     """
-    analysis_dir = Path(get_state().analysis_root) / dataset_name
+    _state = get_state()
+    analysis_dir = Path(_state.analysis_root) / dataset_name
     analysis_dir.mkdir(parents=True, exist_ok=True)
 
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
+    data_nxs = analysis_dir / f"{dataset_name}.nxs"
 
     if not map_yaml.exists():
         map_config = {
@@ -111,7 +113,72 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
             yaml.dump(map_config, f, sort_keys=False)
 
     if not pipeline_yaml.exists():
-        pipeline = {"config": {}, "pipeline": []} # FILL IN THIS PIPELINE
+        pipeline = {
+            "config": {},
+            "setup_map": [
+                {
+                    "common.YAMLReader": {
+                        "filename": map_yaml,
+                        "schema": "common.models.map.MapConfig",
+                    }
+                },
+                {
+                    "common.YAMLReader": {
+                        "filename": _state.detector_yaml,
+                        "schema": "common.models.map.DetectorConfig",
+                    }
+                },
+                {
+                    "common.MapProcessor": {
+                        "fill_data": False,
+                        "remove_constant_dims": False,
+                        "num_proc": 1
+                    }
+                },
+                {
+                    "common.NexusWriter": {
+                        "filename": data_nxs,
+                        "force_overwrite": True,
+                    }
+                },
+            ],
+            "setup_strain": [
+                {
+                    "common.YAMLReader": {
+                        "filename": _state.strain_analysis_yaml,
+                        "schema": "edd.models.StrainAnalysisConfig",
+                    }
+                },
+                {
+                    "common.YAMLReader": {
+                        "filename": _state.calibration_yaml,
+                        "schema": "edd.models.MCATthCalibrationConfig",
+                    }
+                },
+                {
+                    "common.NexusReader": {
+                        "filename": data_nxs,
+                    }
+                },
+                {
+                    "edd.StrainAnalysisProcessor": {
+                        "standalone": True,
+                        "setup": True,
+                        "update": False,
+                        "find_peaks": True,
+                        "skip_animation": True,
+                        "save_figures": False,
+                    }
+                },
+                {
+                    "common.NexusWriter": {
+                        "filename": data_nxs,
+                        "nxpath": f"/{dataset_name}_strain_analysis",
+                        "force_overwrite": True,
+                    }
+                },
+            ]
+        }
         with open(pipeline_yaml, "w") as f:
             logger.debug(f"Writing {pipeline_yaml}")
             yaml.dump(pipeline, f, sort_keys=False)
