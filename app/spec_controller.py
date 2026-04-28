@@ -225,7 +225,7 @@ class SpecController:
                     )
                     callback()
             except Exception as e:
-                logger.error(e)
+                logger.error(f"{e!r}")
             finally:
                 self.queue.task_done()
 
