@@ -185,7 +185,7 @@ def _get_map_processor(data):
     """
     global _MAP_PROC_LOGGER
     kwargs = dict(
-        data=[*data, _detectors_config()], modelmetaclass=MapProcessor,
+        data=[*data, _DETECTORS_CONFIG], modelmetaclass=MapProcessor,
         remove_constant_dims=False, num_proc=1,
     )
     if _MAP_PROC_LOGGER is None:
