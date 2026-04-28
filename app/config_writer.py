@@ -16,13 +16,18 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
     """Create CHAP configuration files for a new dataset.
 
     Creates ``<analysis_root>/<dataset_name>/`` if it does not exist, then
-    writes ``map_config.yaml`` and ``pipeline.yaml`` with skeleton
-    content derived from application state.  Existing files are left
-    untouched.
+    writes ``map_config.yaml`` and ``pipeline.yaml`` with content derived
+    from application state and the supplied scan parameters.  Existing
+    files are left untouched.
 
     :param dataset_name: Name of the dataset; used as the analysis
         subdirectory name and as the map title.
     :type dataset_name: str
+    :param spec_file: Absolute path to the SPEC log file for this dataset.
+    :type spec_file: str
+    :param scan_number: SPEC scan number from the ``newsample`` command;
+        used as the first entry in ``spec_scans[0].scan_numbers``.
+    :type scan_number: int
     """
     _state = get_state()
     analysis_dir = Path(_state.analysis_root) / dataset_name

@@ -7,7 +7,6 @@ import yaml
 from pathlib import Path
 
 from app import get_logger
-from app.config_writer import create_dataset_configs, update_dataset_configs
 from app.pipeline_manager import submit_setup, submit_update
 from app.state import get_state
 
@@ -39,16 +38,14 @@ def initialize_dataset(dataset_name):
     def after_newsample():
         """Callback executed by the SPEC worker after ``newsample`` completes.
 
-        Creates analysis configuration files, submits the setup pipeline
-        via the CHAP daemon, registers the dataset in application state,
-        and writes state to disk.
+        Queues config creation and the setup pipeline, registers the
+        dataset in application state, and writes state to disk.
         """
-        create_dataset_configs(
+        submit_setup(
             dataset_name,
             get_state().spec.spec_file,
-            get_state().spec.scan_n
+            get_state().spec.scan_n,
         )
-        submit_setup(dataset_name)
         get_state().datasets[dataset_name] = {
             "current_update": 0,
         }
@@ -126,11 +123,15 @@ def update_dataset(dataset_name, locations_csv):
         """
         def after_collect():
             scan_numbers.append(get_state().spec.scan_n)
-            if i == n - 1:
+            if True: #i == n - 1:
                 # All scans for this update are complete.
                 get_state().datasets[dataset_name]["current_update"] += 1
-                update_dataset_configs(dataset_name, scan_numbers)
-                submit_update(dataset_name, scan_numbers, scan_start_idx)
+                submit_update(
+                    dataset_name,
+                    get_state().spec.spec_file,
+                    [scan_numbers[-1]],
+                    scan_start_idx,
+                )
                 get_state().write()
         return after_collect
 

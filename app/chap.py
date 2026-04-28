@@ -48,6 +48,14 @@ def _read_yaml(filename, schema):
 
 
 def load_data():
+    """Load static YAML configurations from paths stored in application state.
+
+    Reads the strain-analysis config, tth-calibration result, and detector
+    config files and caches them as module-level ``PipelineData`` objects
+    (``_STRAIN_CFG``, ``_TTH_CFG``, ``_DETECTORS_CONFIG``).  Must be called
+    once after the application state has been initialised before any of the
+    ``setup_*`` or ``update_*`` functions are used.
+    """
     _state = get_state()
     if _state is not None:
         global _STRAIN_CFG, _TTH_CFG, _DETECTORS_CONFIG
@@ -227,7 +235,7 @@ def _get_strain_analysis_processor():
     return proc
 
 
-def setup_raw(map_config_filename: str, map_data_filename: str):
+def setup_raw(map_yaml: str, data_nxs: str):
     """Create an empty map NeXus container (placeholder structure, no
     detector data).
 
@@ -249,15 +257,15 @@ def setup_raw(map_config_filename: str, map_data_filename: str):
             filename: data.nxs
             force_overwrite: true
 
-    :param map_config_filename: Map configuration YAML filename
+    :param map_yaml: Map configuration YAML filename
         (relative to ``RUN_CFG.inputdir``).
-    :type map_config_filename: str
-    :param map_data_filename: NeXus output filename to create (relative
+    :type map_yaml: str
+    :param data_nxs: NeXus output filename to create (relative
         to ``RUN_CFG.outputdir``).
-    :type map_data_filename: str
+    :type data_nxs: str
     """
     # 1. Read map config YAML
-    _MAP_YAML_READER.filename = map_config_filename
+    _MAP_YAML_READER.filename = map_yaml
     map_cfg = _MAP_YAML_READER.read()
     data = [PipelineData(
         name='YAMLReader', data=map_cfg,
@@ -269,12 +277,12 @@ def setup_raw(map_config_filename: str, map_data_filename: str):
     data.append(PipelineData(name='MapProcessor', data=result))
 
     # 3. Write map container
-    _MAP_NX_WRITER.filename = map_data_filename
+    _MAP_NX_WRITER.filename = data_nxs
     _MAP_NX_WRITER.nxpath = None
     _MAP_NX_WRITER.write(data)
 
 
-def setup_strain(filename: str, nxpath: str):
+def setup_strain(data_nxs: str, nxpath: str):
     """Run the full strain analysis setup pass and write the resulting
     NeXus group into an existing NeXus file.
 
@@ -302,9 +310,9 @@ def setup_strain(filename: str, nxpath: str):
             nxpath: /testflight-0212-b_dataset1_strain_analysis
             force_overwrite: true
 
-    :param filename: NeXus filename to read from and write to (relative
+    :param data_nxs: NeXus filename to read from and write to (relative
         to ``RUN_CFG.inputdir`` / ``RUN_CFG.outputdir``).
-    :type filename: str
+    :type data_nxs: str
     :param nxpath: NXpath in ``filename`` under which the strain
         analysis group will be written.
     :type nxpath: str
@@ -313,7 +321,7 @@ def setup_strain(filename: str, nxpath: str):
     data = _init_data()
 
     # 1. Read full NXS file
-    _NX_READER.filename = filename
+    _NX_READER.filename = data_nxs
     nxroot = _NX_READER.read()
     data.append(PipelineData(name='NexusReader', data=nxroot))
 
@@ -337,14 +345,14 @@ def setup_strain(filename: str, nxpath: str):
                     PipelineData(data=r))
 
     # 3. Append strain analysis group to NXS file
-    _STRAIN_NX_WRITER.filename = filename
+    _STRAIN_NX_WRITER.filename = data_nxs
     _STRAIN_NX_WRITER.nxpath = nxpath
     _STRAIN_NX_WRITER.write(data)
 
 
-def update_raw(map_config_filename: str,
+def update_raw(map_yaml: str,
                spec_file: str, scan_number: int,
-               map_data_filename: str):
+               data_nxs: str):
     """Write one scan's worth of raw map data into an existing NeXus file.
 
     Equivalent to running the following pipeline once per scan:
@@ -365,20 +373,20 @@ ight-0212-b/spec.log
             force_overwrite: true
             resize_axis: 0
 
-    :param map_config_filename: Map configuration YAML filename
+    :param map_yaml: Map configuration YAML filename
         (relative to ``RUN_CFG.inputdir``).
-    :type map_config_filename: str
+    :type map_yaml: str
     :param spec_file: Path to the SPEC file for this scan (relative to
         ``RUN_CFG.inputdir`` or absolute).
     :type spec_file: str
     :param scan_number: Scan number to extract from ``spec_file``.
     :type scan_number: int
-    :param map_data_filename: NeXus output filename (relative to
+    :param data_nxs: NeXus output filename (relative to
         ``RUN_CFG.outputdir``).
-    :type map_data_filename: str
+    :type data_nxs: str
     """
     # 1. Read map config YAML (filename may vary per call)
-    _MAP_YAML_READER.filename = map_config_filename
+    _MAP_YAML_READER.filename = map_yaml
     map_cfg = _MAP_YAML_READER.read()
     data = [PipelineData(
         name='YAMLReader', data=map_cfg,
@@ -390,11 +398,11 @@ ight-0212-b/spec.log
     data.append(PipelineData(name='MapSliceProcessor', data=result))
 
     # 3. Write results
-    _MAP_VALUES_WRITER.filename = map_data_filename
+    _MAP_VALUES_WRITER.filename = data_nxs
     _MAP_VALUES_WRITER.write(data, filename=_MAP_VALUES_WRITER.filename)
 
 
-def update_strain(filename: str, path_prefix: str,
+def update_strain(data_nxs: str, path_prefix: str,
                   scan_number: int, idx_slice: dict):
     """Write updated strain analysis results for one scan into an
     existing NeXus file.
@@ -428,9 +436,9 @@ def update_strain(filename: str, path_prefix: str,
             resize_axis: 0
             force_overwrite: true
 
-    :param filename: NeXus filename to read from and write to (relative
+    :param data_nxs: NeXus filename to read from and write to (relative
         to ``RUN_CFG.inputdir`` / ``RUN_CFG.outputdir``).
-    :type filename: str
+    :type data_nxs: str
     :param path_prefix: NXpath prefix prepended to all dataset paths
         written by ``NexusValuesWriter``.
     :type path_prefix: str
@@ -444,7 +452,7 @@ def update_strain(filename: str, path_prefix: str,
     data = _init_data()
 
     # 1. Read raw input data
-    _READER.filename = filename
+    _READER.filename = data_nxs
     _READER.scan_number = scan_number
     nxroot = _READER.read()
     data.append(PipelineData(name='SliceNXdataReader', data=nxroot))
@@ -459,7 +467,7 @@ def update_strain(filename: str, path_prefix: str,
                     PipelineData(data=r))
 
     # 3. Write results
-    _WRITER.filename = filename
+    _WRITER.filename = data_nxs
     _WRITER.path_prefix = path_prefix
     if isinstance(idx_slice, dict):
         idx_slice = IndexSliceConfig(**idx_slice)
