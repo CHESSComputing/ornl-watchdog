@@ -25,7 +25,7 @@ def _worker():
         try:
             task(*args, **kwargs)
         except Exception as exc:
-            logger.error(f"Task failed: {exc}")
+            logger.error(f"Task failed: {exc!r}")
         finally:
             _task_queue.task_done()
 
