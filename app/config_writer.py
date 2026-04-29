@@ -134,26 +134,26 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
             "config": {},
             "setup_map": [
                 {
-                    "common.YAMLReader": {
+                    "common.reader.YAMLReader": {
                         "filename": str(map_yaml),
                         "schema": "common.models.map.MapConfig",
                     }
                 },
                 {
-                    "common.YAMLReader": {
+                    "common.reader.YAMLReader": {
                         "filename": str(_state.detectors_yaml),
                         "schema": "common.models.map.DetectorConfig",
                     }
                 },
                 {
-                    "common.MapProcessor": {
+                    "common.processor.MapProcessor": {
                         "fill_data": False,
                         "remove_constant_dims": False,
                         "num_proc": 1
                     }
                 },
                 {
-                    "common.NexusWriter": {
+                    "common.writer.NexusWriter": {
                         "filename": str(data_nxs),
                         "force_overwrite": True,
                     }
@@ -161,24 +161,24 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
             ],
             "setup_strain": [
                 {
-                    "common.YAMLReader": {
+                    "common.reader.YAMLReader": {
                         "filename": str(_state.strain_analysis_yaml),
                         "schema": "edd.models.StrainAnalysisConfig",
                     }
                 },
                 {
-                    "common.YAMLReader": {
+                    "common.reader.YAMLReader": {
                         "filename": str(_state.calibration_yaml),
                         "schema": "edd.models.MCATthCalibrationConfig",
                     }
                 },
                 {
-                    "common.NexusReader": {
+                    "common.reader.NexusReader": {
                         "filename": str(data_nxs),
                     }
                 },
                 {
-                    "edd.StrainAnalysisProcessor": {
+                    "edd.processor.StrainAnalysisProcessor": {
                         "standalone": True,
                         "setup": True,
                         "update": False,
@@ -188,7 +188,7 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
                     }
                 },
                 {
-                    "common.NexusWriter": {
+                    "common.writer.NexusWriter": {
                         "filename": str(data_nxs),
                         "nxpath": f"/{dataset_name}_strain_analysis",
                         "force_overwrite": True,
@@ -239,20 +239,20 @@ def update_dataset_configs(dataset_name, scan_numbers):
     logger.debug(f"spec_file = {map_config['spec_scans'][0]['spec_file']}")
     pipeline_config[f"update_map_{update_i}"] = [
         {
-            "common.YAMLReader": {
+            "common.reader.YAMLReader": {
                 "filename": str(map_yaml),
                 "schema": "common.models.map.MapConfig",
             }
         },
         {
-            "common.MapSliceProcessor": {
+            "common.map_utils.MapSliceProcessor": {
                 "spec_file": map_config["spec_scans"][0]["spec_file"],
                 "scan_number": scan_numbers, # FIXME
                 "detectors": [{"id": 0}], # FIXME
             }
         },
         {
-            "common.NexusValuesWriter": {
+            "common.writer.NexusValuesWriter": {
                 "filename": str(data_nxs),
                 "force_overwrite": True,
                 "resize_axis": 0,
@@ -262,25 +262,25 @@ def update_dataset_configs(dataset_name, scan_numbers):
     logger.debug(f"Added pipeline: update_map_{update_i}")
     pipeline_config[f"update_strain_{update_i}"] = [
         {
-            "edd.SliceNXdataReader": {
+            "edd.reader.SliceNXdataReader": {
                 "filename": str(data_nxs),
                 "scan_number": scan_numbers, # FIXME
             }
         },
         {
-            "common.YAMLReader": {
+            "common.reader.YAMLReader": {
                 "filename": str(_state.strain_analysis_yaml),
                 "schema": "edd.models.StrainAnalysisConfig",
             }
         },
         {
-            "common.YAMLReader": {
+            "common.reader.YAMLReader": {
                 "filename": str(_state.calibration_yaml),
                 "schema": "edd.models.MCATthCalibrationConfig",
             }
         },
         {
-            "edd.StrainAnalysisProcessor": {
+            "edd.processor.StrainAnalysisProcessor": {
                 "standalone": True,
                 "setup": False,
                 "update": True,
@@ -290,7 +290,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
             }
         },
         {
-            "common.NexusValuesWriter": {
+            "common.writer.NexusValuesWriter": {
                 "filename": str(data_nxs),
                 "path_prefix": f"/{dataset_name}_strain_analysis/",
                 "idx_slice": {
