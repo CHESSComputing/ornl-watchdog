@@ -55,39 +55,51 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
             ],
             "scalar_data": [
                 {"label": "SCAN_N", "units": "n/a",
-                 "data_type": "smb_par", "name": "SCAN_N"},
+                 "data_type": "scan_number", "name": "SCAN_N"},
+                {"label": "rsugap", "units": "mm",
+                 "data_type": "spec_motor", "name": "rsugap"},
+                {"label": "rsdgap", "units": "mm",
+                 "data_type": "spec_motor", "name": "rsdgap"},
                 {"label": "rsgap_size", "units": "mm",
-                 "data_type": "smb_par", "name": "rsgap_size"},
+                 "data_type": "expression", "name": "0.5 * (rsugap + rsdgap)"},
+                {"label": "w0t", "units": "mm",
+                 "data_type": "spec_motor", "name": "w0t"},
+                {"label": "w0b", "units": "mm",
+                 "data_type": "spec_motor", "name": "w0b"},
+                {"label": "w0r", "units": "mm",
+                 "data_type": "spec_motor", "name": "w0r"},
+                {"label": "w0l", "units": "mm",
+                 "data_type": "spec_motor", "name": "w0l"},
                 {"label": "x_effective", "units": "mm",
-                 "data_type": "smb_par", "name": "x_effective"},
+                 "data_type": "expression", "name": "w0r + w0l"},
                 {"label": "z_effective", "units": "mm",
-                 "data_type": "smb_par", "name": "z_effective"},
+                 "data_type": "expression", "name": "w0t + w0b"},
             ],
             "independent_dimensions": [
                 {
                     "label": "labx",
                     "units": "mm",
-                    "data_type": "smb_par",
+                    "data_type": "spec_motor",
                     "name": get_state().labx_motor
                 },
-                {
-                    "label": "laby",
-                    "units": "mm",
-                    "data_type": "spec_motor",
-                    "name": "laby"
-                },
+                # {
+                #     "label": "laby",
+                #     "units": "mm",
+                #     "data_type": "spec_motor",
+                #     "name": "rams4yr"
+                # },
                 {
                     "label": "labz",
                     "units": "mm",
                     "data_type": "spec_motor",
                     "name": get_state().labz_motor
                 },
-                {
-                    "label": "ometotal",
-                    "units": "degrees",
-                    "data_type": "smb_par",
-                    "name": "ometotal"
-                }
+                # {
+                #     "label": "ometotal",
+                #     "units": "degrees",
+                #     "data_type": "smb_par",
+                #     "name": "ometotal"
+                # }
             ],
             "presample_intensity": {
                 "label": "presample_intensity",
