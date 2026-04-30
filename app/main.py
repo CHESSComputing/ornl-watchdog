@@ -8,7 +8,8 @@ import logging
 import os
 import sys
 import time
-from watchdog.observers import Observer
+
+from watchdog.observers.polling import PollingObserver
 
 from app import get_logger
 from app.chap import load_data
@@ -37,7 +38,7 @@ def main():
         raise FileNotFoundError(get_state().watch_root)
 
     logger.info("Starting watchdog daemon")
-    observer = Observer()
+    observer = PollingObserver()
     logger.debug(f"observer = {observer}")
     observer.schedule(
         DatasetWatcher(),

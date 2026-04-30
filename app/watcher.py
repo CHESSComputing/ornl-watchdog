@@ -3,8 +3,7 @@
 
 import logging
 from pathlib import Path
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
+from watchdog.events import LoggingEventHandler
 
 from app import get_logger
 from app.dataset_manager import initialize_dataset, update_dataset
@@ -12,7 +11,7 @@ from app.dataset_manager import initialize_dataset, update_dataset
 logger = get_logger("watcher")
 
 
-class DatasetWatcher(FileSystemEventHandler):
+class DatasetWatcher(LoggingEventHandler):
     """Watchdog event handler that reacts to new files and directories.
 
     Monitors the configured ``watch_root`` recursively.  When a new
