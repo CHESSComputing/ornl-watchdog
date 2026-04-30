@@ -31,7 +31,7 @@ def _worker():
 
 threading.Thread(target=_worker, daemon=True).start()
 
-def _do_setup(dataset_name, spec_file, scan_number, map_yaml, data_nxs, nxpath):
+def _do_setup(dataset_name, spec_file, map_yaml, data_nxs, nxpath):
     """Write CHAP config files and run the setup pipeline for a new dataset.
 
     Called by the worker thread.  Runs :func:`create_dataset_configs` to
@@ -55,8 +55,8 @@ def _do_setup(dataset_name, spec_file, scan_number, map_yaml, data_nxs, nxpath):
         group will be written (e.g. ``/dataset1_strain_analysis``).
     :type nxpath: str
     """
-    logger.debug(f"create_dataset_configs({dataset_name}, {spec_file}, {scan_number})")
-    create_dataset_configs(dataset_name, spec_file, scan_number)
+    logger.debug(f"create_dataset_configs({dataset_name}, {spec_file})")
+    create_dataset_configs(dataset_name, spec_file)
     logger.debug(f"setup_raw({map_yaml}, {data_nxs})")
     setup_raw(map_yaml, data_nxs)
     logger.debug(f"setup_strain({data_nxs}, {nxpath})")
@@ -64,20 +64,20 @@ def _do_setup(dataset_name, spec_file, scan_number, map_yaml, data_nxs, nxpath):
     logger.info("Done with setup")
 
 
-def _do_update(dataset_name, scan_number, map_yaml, spec_file,
+def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
                data_nxs, path_prefix, idx_slice, results_json):
     """Update CHAP config files and run the update pipeline for one scan.
 
     Called by the worker thread.  Runs :func:`update_dataset_configs` to
-    append *scan_number* to ``map_config.yaml``, then runs
+    extend the ``scan_numbers`` list in ``map_config.yaml``, then runs
     :func:`~app.chap.update_raw` and :func:`~app.chap.update_strain` to
     write the raw map slice and updated strain-analysis results.
 
     :param dataset_name: Name of the dataset directory under
         ``analysis_root``.
     :type dataset_name: str
-    :param scan_number: SPEC scan number to process.
-    :type scan_number: int
+    :param scan_numbers: SPEC scan numbers to process.
+    :type scan_numbers: list[int]
     :param map_yaml: Absolute path to ``map_config.yaml``.
     :type map_yaml: str
     :param spec_file: Absolute path to the SPEC log file for this dataset.
@@ -96,16 +96,16 @@ def _do_update(dataset_name, scan_number, map_yaml, spec_file,
         experiments.
     :type results_json: str
     """
-    logger.debug(f"update_dataset_configs({dataset_name}, [{scan_number}])")
-    update_dataset_configs(dataset_name, [scan_number])
-    logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_number}, {data_nxs})")
-    update_raw(map_yaml, spec_file, scan_number, data_nxs)
+    logger.debug(f"update_dataset_configs({dataset_name}, {scan_numbers})")
+    update_dataset_configs(dataset_name, scan_numbers)
+    logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_numbers}, {data_nxs})")
+    update_raw(map_yaml, spec_file, scan_numbers, data_nxs)
     logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_number}, {idx_slice}, {results_json})")
-    update_strain(data_nxs, path_prefix, scan_number, idx_slice, results_json)
+    update_strain(data_nxs, path_prefix, scan_numbers, idx_slice, results_json)
     logger.info("Done with update")
 
 
-def submit_setup(dataset_name, spec_file, scan_number):
+def submit_setup(dataset_name, spec_file):
     """Queue the config-write and setup pipeline for a new dataset.
 
     Derives ``map_yaml``, ``data_nxs``, and ``nxpath`` from
@@ -117,8 +117,6 @@ def submit_setup(dataset_name, spec_file, scan_number):
     :type dataset_name: str
     :param spec_file: Path to the SPEC file for this dataset.
     :type spec_file: str
-    :param scan_number: SPEC scan number from the ``newsample`` command.
-    :type scan_number: int
     """
     analysis_dir = Path(get_state().analysis_root) / dataset_name
     map_yaml = str(analysis_dir / "map_config.yaml")
@@ -126,7 +124,7 @@ def submit_setup(dataset_name, spec_file, scan_number):
     nxpath = f"/{dataset_name}_strain_analysis"
     _task_queue.put((
         _do_setup,
-        (dataset_name, spec_file, scan_number, map_yaml, data_nxs, nxpath),
+        (dataset_name, spec_file, map_yaml, data_nxs, nxpath),
         {}
     ))
 
@@ -156,15 +154,14 @@ def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx):
     path_prefix = f"/{dataset_name}_strain_analysis/"
     results_json = str(analysis_dir / "strain_results.json")
 
-    for i, scan_number in enumerate(scan_numbers):
-        map_idx = scan_start_idx + i
-        _task_queue.put((
-            _do_update,
-            (
-                dataset_name, scan_number, map_yaml, spec_file,
-                data_nxs, path_prefix,
-                {"start": map_idx, "stop": map_idx + 1},
-                results_json,
-            ),
-            {}
-        ))
+    _task_queue.put((
+        _do_update,
+        (
+            dataset_name, scan_numbers, map_yaml, spec_file,
+            data_nxs, path_prefix,
+            {"start": scan_start_idx,
+             "stop": scan_start_idx + len(scan_numbers)},
+            results_json,
+        ),
+        {}
+    ))

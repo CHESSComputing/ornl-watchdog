@@ -19,7 +19,7 @@ class VerboseSafeDumper(yaml.SafeDumper):
         return True
 
 
-def create_dataset_configs(dataset_name, spec_file, scan_number):
+def create_dataset_configs(dataset_name, spec_file):
     """Create CHAP configuration files for a new dataset.
 
     Creates ``<analysis_root>/<dataset_name>/`` if it does not exist, then
@@ -32,9 +32,6 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
     :type dataset_name: str
     :param spec_file: Absolute path to the SPEC log file for this dataset.
     :type spec_file: str
-    :param scan_number: SPEC scan number from the ``newsample`` command;
-        used as the first entry in ``spec_scans[0].scan_numbers``.
-    :type scan_number: int
     """
     _state = get_state()
     analysis_dir = Path(_state.analysis_root) / dataset_name
@@ -255,7 +252,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
         {
             "common.map_utils.MapSliceProcessor": {
                 "spec_file": map_config["spec_scans"][0]["spec_file"],
-                "scan_number": scan_numbers, # FIXME
+                "scan_numbers": scan_numbers,
                 "detectors": [{"id": 0}], # FIXME
             }
         },
@@ -272,7 +269,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
         {
             "edd.reader.SliceNXdataReader": {
                 "filename": str(data_nxs),
-                "scan_number": scan_numbers, # FIXME
+                "scan_numbers": scan_numbers,
             }
         },
         {

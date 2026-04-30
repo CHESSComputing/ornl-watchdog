@@ -20,7 +20,7 @@ from CHAP.models import RunConfig
 from app import get_logger
 from app.state import get_state
 
-logger = get_logger(__name__)
+logger = get_logger('chap')
 
 
 def _read_yaml(filename, schema):
@@ -103,7 +103,7 @@ def _init_data():
 # per-run fields)
 _READER_ARGS = dict(
     filename='data.nxs',
-    scan_number=0,
+    scan_numbers=[1],
 )
 _PROC_ARGS = dict(
     standalone=True, setup=False, update=True,
@@ -150,7 +150,7 @@ _PROC_LOGGER = None
 _MAP_SLICE_PROC_LOGGER = None
 _MAP_PROC_LOGGER = None
 
-def _get_map_slice_processor(data, spec_file, scan_number):
+def _get_map_slice_processor(data, spec_file, scan_numbers):
     """Return a fresh ``MapSliceProcessor`` for a single scan.
 
     Passes ``data`` and ``modelmetaclass`` so that
@@ -163,15 +163,15 @@ def _get_map_slice_processor(data, spec_file, scan_number):
     :type data: list[CHAP.pipeline.PipelineData]
     :param spec_file: Absolute path to the SPEC file.
     :type spec_file: str
-    :param scan_number: Number of the scan to process.
-    :type scan_number: int
+    :param scan_numbers: Numbers of the scans to process.
+    :type scan_numbers: list[int]
     :return: Processor ready to extract one scan slice from a map.
     :rtype: CHAP.common.map_utils.MapSliceProcessor
     """
     global _MAP_SLICE_PROC_LOGGER
     kwargs = dict(
         data=data, modelmetaclass=MapSliceProcessor,
-        spec_file=spec_file, scan_number=scan_number,
+        spec_file=spec_file, scan_numbers=scan_numbers,
         detectors=_DETECTORS_CONFIG["data"]["detectors"],
     )
     if _MAP_SLICE_PROC_LOGGER is None:
@@ -355,7 +355,7 @@ def setup_strain(data_nxs: str, nxpath: str):
 
 
 def update_raw(map_yaml: str,
-               spec_file: str, scan_number: int,
+               spec_file: str, scan_numbers: list[int],
                data_nxs: str):
     """Write one scan's worth of raw map data into an existing NeXus file.
 
@@ -369,7 +369,7 @@ def update_raw(map_yaml: str,
         - common.MapSliceProcessor:
             spec_file: /nfs/chess/previousid1a3/2024-1/schwalbach-3899-b/testfl\
 ight-0212-b/spec.log
-            scan_number: 2
+            scan_numbers: 2
             detectors:
             - id: 0
         - common.NexusValuesWriter:
@@ -397,7 +397,7 @@ ight-0212-b/spec.log
         schema='common.models.map.MapConfig')]
 
     # 2. Process one scan slice
-    proc = _get_map_slice_processor(data, spec_file, scan_number)
+    proc = _get_map_slice_processor(data, spec_file, scan_numbers)
     result = proc.process(data)
     data.append(PipelineData(name='MapSliceProcessor', data=result))
 
@@ -407,7 +407,7 @@ ight-0212-b/spec.log
 
 
 def update_strain(data_nxs: str, path_prefix: str,
-                  scan_number: int, idx_slice: dict,
+                  scan_numbers: list[int], idx_slice: dict,
                   results_json: str):
     """Write updated strain analysis results for one scan into an
     existing NeXus file.
@@ -418,7 +418,7 @@ def update_strain(data_nxs: str, path_prefix: str,
 
         - edd.SliceNXdataReader:
             filename: data.nxs
-            scan_number: 2
+            scan_numbers: 2
         - common.YAMLReader:
             filename: strain_analysis_config.yaml
             schema: edd.models.StrainAnalysisConfig
@@ -447,8 +447,8 @@ def update_strain(data_nxs: str, path_prefix: str,
     :param path_prefix: NXpath prefix prepended to all dataset paths
         written by ``NexusValuesWriter``.
     :type path_prefix: str
-    :param scan_number: Index of the NXdata slice to read.
-    :type scan_number: int
+    :param scan_numbers: Numbers of the SPEC scans to process.
+    :type scan_numbers: list[int]
     :param idx_slice: Slice configuration passed to ``NexusValuesWriter``
         as the write index.
     :type idx_slice: CHAP.common.models.IndexSliceConfig
@@ -458,7 +458,7 @@ def update_strain(data_nxs: str, path_prefix: str,
 
     # 1. Read raw input data
     _READER.filename = data_nxs
-    _READER.scan_number = scan_number
+    _READER.scan_numbers = scan_numbers
     nxroot = _READER.read()
     data.append(PipelineData(name='SliceNXdataReader', data=nxroot))
 

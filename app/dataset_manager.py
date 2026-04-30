@@ -44,7 +44,6 @@ def initialize_dataset(dataset_name):
         submit_setup(
             dataset_name,
             get_state().spec.spec_file,
-            get_state().spec.scan_n,
         )
         get_state().datasets[dataset_name] = {
             "current_update": 0,
@@ -123,13 +122,13 @@ def update_dataset(dataset_name, locations_csv):
         """
         def after_collect():
             scan_numbers.append(get_state().spec.scan_n)
-            if True: #i == n - 1:
+            if i == n - 1:
                 # All scans for this update are complete.
                 get_state().datasets[dataset_name]["current_update"] += 1
                 submit_update(
                     dataset_name,
                     get_state().spec.spec_file,
-                    [scan_numbers[-1]],
+                    scan_numbers,
                     scan_start_idx,
                 )
                 get_state().write()
