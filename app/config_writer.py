@@ -305,7 +305,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
                 "force_overwrite": True,
                 "remove": True
             }
-        }
+        },
         {
             "common.writer.NexusValuesWriter": {
                 "filename": str(data_nxs),
