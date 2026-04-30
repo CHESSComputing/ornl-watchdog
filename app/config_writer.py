@@ -50,7 +50,7 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
             "spec_scans": [
                 {
                     "spec_file": spec_file,
-                    "scan_numbers": [scan_number]
+                    "scan_numbers": []
                 }
             ],
             "scalar_data": [
