@@ -12,6 +12,13 @@ from app.state import get_state
 
 logger = get_logger("config_writer")
 
+
+class VerboseSafeDumper(yaml.SafeDumper):
+    """Dumper to exlude all aliases from YAML files."""
+    def ignore_aliases(self, data):
+        return True
+
+
 def create_dataset_configs(dataset_name, spec_file, scan_number):
     """Create CHAP configuration files for a new dataset.
 
@@ -127,7 +134,7 @@ def create_dataset_configs(dataset_name, spec_file, scan_number):
         }
         with open(map_yaml, "w") as f:
             logger.debug(f"Writing {map_yaml}")
-            yaml.dump(map_config, f, sort_keys=False)
+            yaml.dump(map_config, f, sort_keys=False, Dumper=VerboseSafeDumper)
 
     if not pipeline_yaml.exists():
         pipeline = {
@@ -228,7 +235,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
         map_config = yaml.safe_load(f)
     map_config["spec_scans"][0]["scan_numbers"].extend(scan_numbers)
     with open(map_yaml, "w") as f:
-        yaml.dump(map_config, f, sort_keys=False)
+        yaml.dump(map_config, f, sort_keys=False, Dumper=VerboseSafeDumper)
     logger.info(f"Updated {map_yaml}")
 
     # Update the pipeline config to include a new "update" step for the new scans
@@ -314,6 +321,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
     ]
     logger.debug(f"Added pipeline: update_strain_{update_i}")
     with open(pipeline_yaml, "w") as f:
-        yaml.dump(pipeline_config, f, sort_keys=False)
+        yaml.dump(pipeline_config, f, sort_keys=False,
+                  Dumper=VerboseSafeDumper)
     logger.info(f"Updated {pipeline_yaml}")
 
