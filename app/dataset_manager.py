@@ -88,7 +88,7 @@ def update_dataset(dataset_name, locations_csv):
                 continue
             logger.debug(f"row: {row}")
             try:
-                _row = [int(x.strip()) for x in row]
+                _row = [float(x.strip()) for x in row]
                 new_locations.append(_row)
                 logger.info(f"Got location: {_row}")
             except Exception as exc:
