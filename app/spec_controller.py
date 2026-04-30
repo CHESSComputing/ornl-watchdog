@@ -6,6 +6,7 @@ import logging
 import queue
 import threading
 import time
+import traceback
 
 from app import get_logger
 
@@ -149,6 +150,7 @@ class SpecController:
 
             if isinstance(result, Exception):
                 logger.warning(f"Connection attempt {attempt} raised: {result!r}")
+                traceback.print_exc()
             else:
                 logger.warning(
                     f"Connection attempt {attempt} failed: "
@@ -226,6 +228,7 @@ class SpecController:
                     callback()
             except Exception as e:
                 logger.error(f"{e!r}")
+                traceback.print_exc()
             finally:
                 self.queue.task_done()
 

@@ -5,6 +5,7 @@
 from pathlib import Path
 import queue as _queue
 import threading
+import traceback
 
 from app import get_logger
 from app.chap import setup_raw, setup_strain, update_raw, update_strain
@@ -26,6 +27,7 @@ def _worker():
             task(*args, **kwargs)
         except Exception as exc:
             logger.error(f"Task failed: {exc!r}")
+            traceback.print_exc()
         finally:
             _task_queue.task_done()
 
