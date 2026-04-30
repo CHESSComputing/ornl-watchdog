@@ -10,7 +10,7 @@ from copy import deepcopy
 from CHAP.common.map_utils import MapSliceProcessor
 from CHAP.common.processor import MapProcessor
 from CHAP.common.reader import NexusReader, YAMLReader
-from CHAP.common.writer import NexusValuesWriter, NexusWriter
+from CHAP.common.writer import NexusValuesWriter, NexusWriter, JSONWriter
 from CHAP.edd.reader import SliceNXdataReader
 from CHAP.edd.processor import StrainAnalysisProcessor
 from CHAP.common.models import IndexSliceConfig
@@ -108,6 +108,7 @@ _READER_ARGS = dict(
 _PROC_ARGS = dict(
     standalone=True, setup=False, update=True,
     find_peaks=True, skip_animation=True, save_figures=False,
+    json_results=True
 )
 _SETUP_STRAIN_PROC_ARGS = dict(
     standalone=True, setup=True, update=False,
@@ -138,6 +139,9 @@ _MAP_NX_WRITER = NexusWriter(
 )
 _STRAIN_NX_WRITER = NexusWriter(
     filename='data.nxs', force_overwrite=True,
+)
+_JSON_WRITER = JSONWriter(
+    filename="results.json", extend=True, remove=True, force_overwrite=True,
 )
 
 # Cached loggers; avoids adding duplicate handlers on every processor
@@ -403,7 +407,8 @@ ight-0212-b/spec.log
 
 
 def update_strain(data_nxs: str, path_prefix: str,
-                  scan_number: int, idx_slice: dict):
+                  scan_number: int, idx_slice: dict,
+                  results_json: str):
     """Write updated strain analysis results for one scan into an
     existing NeXus file.
 
@@ -467,6 +472,9 @@ def update_strain(data_nxs: str, path_prefix: str,
                     PipelineData(data=r))
 
     # 3. Write results
+    _JSON_WRITER.filename = results_json
+    _JSON_WRITER.write(data)
+
     _WRITER.filename = data_nxs
     _WRITER.path_prefix = path_prefix
     if isinstance(idx_slice, dict):

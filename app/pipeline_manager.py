@@ -65,7 +65,7 @@ def _do_setup(dataset_name, spec_file, scan_number, map_yaml, data_nxs, nxpath):
 
 
 def _do_update(dataset_name, scan_number, map_yaml, spec_file,
-               data_nxs, path_prefix, idx_slice):
+               data_nxs, path_prefix, idx_slice, results_json):
     """Update CHAP config files and run the update pipeline for one scan.
 
     Called by the worker thread.  Runs :func:`update_dataset_configs` to
@@ -91,13 +91,17 @@ def _do_update(dataset_name, scan_number, map_yaml, spec_file,
     :param idx_slice: Write-index slice for ``NexusValuesWriter``, as a
         dict with ``start`` and ``stop`` keys.
     :type idx_slice: dict
+    :param results_json: Filename of JSON file for storing simplified
+        results for easy access by processes that autonomously drive
+        experiments.
+    :type results_json: str
     """
     logger.debug(f"update_dataset_configs({dataset_name}, [{scan_number}])")
     update_dataset_configs(dataset_name, [scan_number])
     logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_number}, {data_nxs})")
     update_raw(map_yaml, spec_file, scan_number, data_nxs)
-    logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_number}, {idx_slice})")
-    update_strain(data_nxs, path_prefix, scan_number, idx_slice)
+    logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_number}, {idx_slice}, {results_json})")
+    update_strain(data_nxs, path_prefix, scan_number, idx_slice, results_json)
     logger.info("Done with update")
 
 
@@ -145,10 +149,12 @@ def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx):
         first scan in *scan_numbers* should be written.
     :type scan_start_idx: int
     """
-    analysis_dir = Path(get_state().analysis_root) / dataset_name
+    state = get_state()
+    analysis_dir = Path(state.analysis_root) / dataset_name
     map_yaml = str(analysis_dir / "map_config.yaml")
     data_nxs = str(analysis_dir / "data.nxs")
     path_prefix = f"/{dataset_name}_strain_analysis/"
+    results_json = str(analysis_dir / "strain_results.json")
 
     for i, scan_number in enumerate(scan_numbers):
         map_idx = scan_start_idx + i
@@ -158,6 +164,7 @@ def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx):
                 dataset_name, scan_number, map_yaml, spec_file,
                 data_nxs, path_prefix,
                 {"start": map_idx, "stop": map_idx + 1},
+                results_json,
             ),
             {}
         ))

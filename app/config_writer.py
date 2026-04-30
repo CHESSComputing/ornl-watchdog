@@ -220,6 +220,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
     data_nxs = analysis_dir / f"{dataset_name}.nxs"
+    results_json = analysis_dir / "strain_results.json"
 
     # Update the map config with new scan numbers
     logger.debug(f"Updating {map_yaml}")
@@ -287,8 +288,17 @@ def update_dataset_configs(dataset_name, scan_numbers):
                 "find_peaks": True,
                 "skip_animation": True,
                 "save_figures": False,
+                "json_results": True,
             }
         },
+        {
+            "common.writer.JSONWriter": {
+                "filename": str(results_json),
+                "extend": True,
+                "force_overwrite": True,
+                "remove": True
+            }
+        }
         {
             "common.writer.NexusValuesWriter": {
                 "filename": str(data_nxs),
