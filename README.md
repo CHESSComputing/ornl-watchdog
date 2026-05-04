@@ -7,13 +7,13 @@ Application to CHESS-side control of ORNL EDD beamtime: SPEC and CHAP
       ```yaml
       detectors:
       - id: 0
-	shape: [4096,]
-	attrs:
-	  eta: 180
+	    shape: [4096,]
+    	attrs:
+	      eta: 180
       - id: 22
         shape: [4096,]
-	attrs:
-	  eta: 0
+     	attrs:
+	      eta: 0
       ```
    1. calibration cofiguration (output by CHAP calibration workflow)
    1. strain analysis configuration (output by CHAP strain analysis workflow)
