@@ -54,8 +54,7 @@ def main():
         observer.stop()
     observer.join()
 
-
-if __name__ == "__main__":
+def run():
     parser = argparse.ArgumentParser(
         description='''wacthdog daemon for 2026-2 autonomous ORNL EDXRD
         Experiment at 1a3.'''
@@ -69,3 +68,7 @@ if __name__ == "__main__":
     load_state(args.statefile)
 
     main()
+
+
+if __name__ == "__main__":
+    run()

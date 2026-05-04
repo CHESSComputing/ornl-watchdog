@@ -34,7 +34,7 @@ setuptools.setup(
         'app': 'app',
     },
     entry_points={
-        'console_scripts': ['edd-watchdog = app.main:__main__']
+        'console_scripts': ['edd-watchdog = app.main:run']
     },
     classifiers=[
         "Programming Language :: Python :: 3",
