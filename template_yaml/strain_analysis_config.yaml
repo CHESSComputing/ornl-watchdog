@@ -1,0 +1,7 @@
+find_peak_cutoff: 0.02
+materials:
+  - material_name: idk
+    sgnum: 194
+    lattice_parameters: [2.9216732860334176, 4.660274622008106]
+rel_height_cutoff: 0.02
+skip_animation: false

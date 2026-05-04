@@ -1,0 +1,66 @@
+config:
+  interactive: true
+  log_level: debug
+
+energy:
+  - common.reader.YAMLReader:
+      filename: xps23_config.yaml
+      schema: CHAP.common.models.map.DetectorConfig
+  - common.SpecReader:
+      config:
+        station: id1a3
+        experiment_type: EDD
+        spec_scans:
+          - spec_file:  /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/raw_data/<samplename>/spec.log
+            scan_numbers: 1
+
+  # Perform energy calibration
+  - common.reader.YAMLReader:
+      filename: energy_calibration_config.yaml
+      schema: CHAP.edd.MCAEnergyCalibrationConfig
+  - edd.MCAEnergyCalibrationProcessor:
+      detector_config:
+        baseline: true
+        mask_ranges: [[650, 850]]
+      save_figures: true
+      schema: edd.models.MCAEnergyCalibrationConfig
+
+  # Save the calibration configuration at the only-energy-calibrated stage
+  - common.YAMLWriter:
+      filename: energy_calibration_result.yaml
+      force_overwrite: true
+  - common.ImageWriter:
+      outputdir: saved_figures
+      force_overwrite: true
+
+tth:
+  - common.reader.YAMLReader:
+      filename: xps23_config.yaml
+      schema: CHAP.common.models.map.DetectorConfig
+  - common.SpecReader:
+      config:
+        station: id1a3
+        experiment_type: EDD
+        spec_scans:
+          - spec_file:  /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/raw_data/<samplename>/spec.log
+            scan_numbers: 1
+  - common.YAMLReader:
+      filename: energy_calibration_result.yaml
+      schema: edd.models.MCAEnergyCalibrationConfig
+
+  # Perform the tth calibration
+  - edd.MCATthCalibrationProcessor:
+      config:
+        tth_initial_guess: 7.1
+      detector_config:
+        energy_mask_ranges: [[59, 76], [88, 107], [114, 119.2],[135.9,145]]
+        #energy_mask_ranges: [[59, 138]]
+      save_figures: true
+
+  # Save the energy-and-tth-calibrated calibration configuration
+  - common.YAMLWriter:
+      filename: tth_calibration_result.yaml
+      force_overwrite: true
+  - common.ImageWriter:
+      outputdir: saved_figures
+      force_overwrite: true

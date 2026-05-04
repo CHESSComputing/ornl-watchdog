@@ -1,0 +1,6 @@
+peak_energies: [34.279, 34.720, 39.257, 40.233]
+# 34.279 --> Ce KAlpha2
+# 34.720 --> Ce KAlpha1
+# 39.257 --> Ce KBeta1
+# 40.233 --> Ce KBeta2
+max_peak_index: 1
