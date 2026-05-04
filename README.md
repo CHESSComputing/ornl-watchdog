@@ -36,6 +36,8 @@ Application to CHESS-side control of ORNL EDD beamtime: SPEC and CHAP
    detectors_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/xps23_config.yaml
    calibration_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/reduced_data/tth_calibration_config.yaml
    strain_analysis_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/reduced_data/strain_analysis_config.yaml
+
+   datasets: {}
    ```
 1. Finally, start the watchdog program. For week 2, use this executable: `/nfs/chess/user/kls286/demo/miniforge3/envs/CHAP_edd/bin/edd-watchdog`
    Run `/nfs/chess/user/kls286/demo/miniforge3/envs/CHAP_edd/bin/edd-watchdog /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/watchdog_config.yaml` to start the watchdog
