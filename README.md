@@ -2,22 +2,13 @@
 Application to CHESS-side control of ORNL EDD beamtime: SPEC and CHAP
 
 # Usage
-1. First, gather and process calibration scans and process using the usual `CHAP`. Three CHAP configuraiton files will be needed before starting the watchdog program:
-   1. detector id / shape configuration
-      ```yaml
-      detectors:
-      - id: 0
-	    shape: [4096,]
-    	attrs:
-	      eta: 180
-      - id: 22
-        shape: [4096,]
-     	attrs:
-	      eta: 0
-      ```
-   1. calibration cofiguration (output by CHAP calibration workflow)
-   1. strain analysis configuration (output by CHAP strain analysis workflow)
-1. Next, set up the configuration file for the watchdog program (template below) and save it to `/nfs/chess/aux/cycles/<cycle>/<station>/<btr>/metadata/watchdog_config.yaml`.
+1. Set up some configuration files for CHAP data pprocessing:
+   1. detector configurations (start with: `template_yaml/xps23_config.yaml`)
+      Define the detector(s) that will be used for the whole experiment -- calibration and strain analysis.
+   1. strain analysis configuration (start with: `template_yaml/strain_analysis_config.yaml`)
+      Define the material parameters that will be used for strain analysis.
+1. Gather and process calibration data using the usual `CHAP` workflow (`template_yaml/calibration_pipeline.yaml`). The crucial product of this step is: a tth calibration configuration yaml file.
+1. Set up the configuration file for the watchdog program (template below) and save it to `/nfs/chess/aux/cycles/<cycle>/<station>/<btr>/metadata/watchdog_config.yaml`.
    ```yaml
    filename: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/watchdog_config.yaml
 
@@ -39,6 +30,6 @@ Application to CHESS-side control of ORNL EDD beamtime: SPEC and CHAP
 
    datasets: {}
    ```
-1. Finally, start the watchdog program. For week 2, use this executable: `/nfs/chess/user/kls286/demo/miniforge3/envs/CHAP_edd/bin/edd-watchdog`
+1. Start the watchdog program. For week 2, use this executable: `/nfs/chess/user/kls286/demo/miniforge3/envs/CHAP_edd/bin/edd-watchdog`
    Run `/nfs/chess/user/kls286/demo/miniforge3/envs/CHAP_edd/bin/edd-watchdog /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/watchdog_config.yaml` to start the watchdog
 
