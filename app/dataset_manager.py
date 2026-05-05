@@ -148,7 +148,7 @@ def update_dataset(dataset_name, locations_csv):
                     dataset_name, next_labx, next_labz,
                     callback=make_after_collect(i + 1),
                 )
-        get_state().write()
+            get_state().write()
         return after_collect
 
     if new_locations:
