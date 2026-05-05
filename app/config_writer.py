@@ -39,7 +39,7 @@ def create_dataset_configs(dataset_name, spec_file):
 
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
-    data_nxs = analysis_dir / f"{dataset_name}.nxs"
+    data_nxs = analysis_dir / "data.nxs"
 
     if not map_yaml.exists():
         map_config = {
@@ -223,7 +223,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
     analysis_dir = Path(_state.analysis_root) / dataset_name
     map_yaml = analysis_dir / "map_config.yaml"
     pipeline_yaml = analysis_dir / "pipeline.yaml"
-    data_nxs = analysis_dir / f"{dataset_name}.nxs"
+    data_nxs = analysis_dir / "data.nxs"
     results_json = analysis_dir / "strain_results.json"
 
     # Update the map config with new scan numbers
