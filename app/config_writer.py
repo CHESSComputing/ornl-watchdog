@@ -9,6 +9,7 @@ import yaml
 
 from app import get_logger
 from app.state import get_state
+from app.chap import _detectors_cfg
 
 logger = get_logger("config_writer")
 
@@ -230,6 +231,11 @@ def update_dataset_configs(dataset_name, scan_numbers):
     logger.debug(f"Updating {map_yaml}")
     with open(map_yaml, "r") as f:
         map_config = yaml.safe_load(f)
+    # Quick, before we update it, get the number of points already in
+    # the dataset and use it as the start index for writing the slice
+    # of new update data
+    start_idx = len(map_config["spec_scans"][0]["scan_numbers"])
+    stop_idx = start_idx + len(scan_numbers)
     map_config["spec_scans"][0]["scan_numbers"].extend(scan_numbers)
     with open(map_yaml, "w") as f:
         yaml.dump(map_config, f, sort_keys=False, Dumper=VerboseSafeDumper)
@@ -253,7 +259,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
             "common.map_utils.MapSliceProcessor": {
                 "spec_file": map_config["spec_scans"][0]["spec_file"],
                 "scan_numbers": scan_numbers,
-                "detectors": [{"id": 0}], # FIXME
+                "detectors": _detectors_cfg()["detectors"],
             }
         },
         {
@@ -308,8 +314,8 @@ def update_dataset_configs(dataset_name, scan_numbers):
                 "filename": str(data_nxs),
                 "path_prefix": f"/{dataset_name}_strain_analysis/",
                 "idx_slice": {
-                    "start": 0, # FIXME
-                    "stop": 1,
+                    "start": start_idx,
+                    "stop": stop_idx,
                 },
                 "resize_axis": 0,
                 "force_overwrite": True,
