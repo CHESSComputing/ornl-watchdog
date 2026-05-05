@@ -250,9 +250,9 @@ class SpecController:
         """
         commands = [
             f"newsample \"{dataset}\" 0",
-            f"mv {self.labx_motor} {labx}",
-            f"mv {self.labz_motor} {labz}",
-            f"tseries {self.tseries_npts} {self.tseries_exposure}"
+            f"umv {self.labx_motor} {labx}",
+            f"umv {self.labz_motor} {labz}",
+            f"wbtseries {self.tseries_npts} {self.tseries_exposure}"
         ]
         self.enqueue(commands, callback)
 
