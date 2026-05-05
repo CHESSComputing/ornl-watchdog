@@ -50,10 +50,7 @@ def initialize_dataset(dataset_name):
         }
         get_state().write()
 
-    get_state().spec.enqueue(
-        [f"newsample \"{dataset_name}\" 0"],
-        callback=after_newsample,
-    )
+    after_newsample()
 
 
 def update_dataset(dataset_name, locations_csv):
@@ -75,9 +72,10 @@ def update_dataset(dataset_name, locations_csv):
     """
     logger.info(f"Dataset '{dataset_name}' update detected: {locations_csv}")
 
+    init = False
     if dataset_name not in get_state().datasets:
         logger.warning(f"Dataset not found: {dataset_name}")
-        return
+        init = True
 
     # Parse new locations
     new_locations = []
@@ -97,12 +95,15 @@ def update_dataset(dataset_name, locations_csv):
         f"{locations_csv} contains {len(new_locations)} new locations."
     )
 
-    # Record the number of scans already in the map before this update
-    # so we know which map-array indices the new scans correspond to.
-    analysis_dir = Path(get_state().analysis_root) / dataset_name
-    with open(analysis_dir / "map_config.yaml") as f:
-        existing_map_config = yaml.safe_load(f)
-    scan_start_idx = len(existing_map_config["spec_scans"][0]["scan_numbers"])
+    if init:
+        scan_start_idx = 0
+    else:
+        # Record the number of scans already in the map before this update
+        # so we know which map-array indices the new scans correspond to.
+        analysis_dir = Path(get_state().analysis_root) / dataset_name
+        with open(analysis_dir / "map_config.yaml") as f:
+            existing_map_config = yaml.safe_load(f)
+        scan_start_idx = len(existing_map_config["spec_scans"][0]["scan_numbers"])
 
     # Collect data for each new location; all work (config updates,
     # state writes, daemon calls) happens inside the final callback so
@@ -113,15 +114,24 @@ def update_dataset(dataset_name, locations_csv):
     def make_after_collect(i):
         """Return the per-scan callback for scan index *i*.
 
+        Each callback enqueues the *next* scan rather than pre-loading all
+        scans, so any work enqueued inside callback i (e.g. the newsample
+        command from initialize_dataset) is guaranteed to complete before
+        scan i+1 begins.
+
         :param i: Zero-based index of this scan within the current
             update batch.
         :type i: int
-        :returns: Callback that appends the completed scan number and,
-            for the last scan, triggers config updates and daemon calls.
+        :returns: Callback that appends the completed scan number, then
+            either enqueues the next scan or, for the last scan, triggers
+            config updates and daemon calls.
         :rtype: callable
         """
         def after_collect():
             scan_numbers.append(get_state().spec.scan_n)
+            if init and i == 0:
+                # Dataset needs to be set up
+                initialize_dataset(dataset_name)
             if i == n - 1:
                 # All scans for this update are complete.
                 get_state().datasets[dataset_name]["current_update"] += 1
@@ -131,10 +141,18 @@ def update_dataset(dataset_name, locations_csv):
                     scan_numbers,
                     scan_start_idx,
                 )
-                get_state().write()
+            else:
+                # Queue up the NEXT scan & callback
+                next_labx, next_labz = new_locations[i + 1]
+                get_state().spec.collect_point(
+                    dataset_name, next_labx, next_labz,
+                    callback=make_after_collect(i + 1),
+                )
+        get_state().write()
         return after_collect
 
-    for i, (labx, labz) in enumerate(new_locations):
+    if new_locations:
+        labx, labz = new_locations[0]
         get_state().spec.collect_point(
-            dataset_name, labx, labz, callback=make_after_collect(i)
+            dataset_name, labx, labz, callback=make_after_collect(0)
         )

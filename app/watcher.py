@@ -37,8 +37,8 @@ class DatasetWatcher(LoggingEventHandler):
 
         if path.is_dir():
             dataset = path.name
-            logger.info(f"Initializing new dataset '{dataset}'")
-            initialize_dataset(dataset)
+            logger.info(f"New dataset '{dataset}'")
+            # initialize_dataset(dataset)
 
         elif path.suffix == ".txt":
             dataset = path.parent.name
