@@ -102,7 +102,7 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
     update_dataset_configs(dataset_name, scan_numbers)
     logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_numbers}, {data_nxs})")
     update_raw(map_yaml, spec_file, scan_numbers, data_nxs)
-    logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_number}, {idx_slice}, {results_json})")
+    logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_numbers}, {idx_slice}, {results_json})")
     update_strain(data_nxs, path_prefix, scan_numbers, idx_slice, results_json)
     logger.info("Done with update")
 
