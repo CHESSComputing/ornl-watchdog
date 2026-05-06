@@ -259,7 +259,7 @@ def update_dataset_configs(dataset_name, scan_numbers):
             "common.map_utils.MapSliceProcessor": {
                 "spec_file": map_config["spec_scans"][0]["spec_file"],
                 "scan_numbers": scan_numbers,
-                "detectors": _detectors_cfg()["detectors"],
+                "detectors": _detectors_cfg()["data"]["detectors"],
             }
         },
         {

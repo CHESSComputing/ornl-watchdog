@@ -90,8 +90,8 @@ def _tth_cfg():
 
 def _detectors_cfg():
     try:
-        global _DETECTORS_CFG
-        return _DETECTORS_CFG
+        global _DETECTORS_CONFIG
+        return _DETECTORS_CONFIG
     except Exception as exc:
         logger.warning(exc)
         return None
