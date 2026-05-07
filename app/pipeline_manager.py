@@ -5,7 +5,14 @@
 from pathlib import Path
 import queue as _queue
 import threading
+import time
 import traceback
+
+# When update_raw raises an OSError about a truncated h5 file the
+# detector IOC hasn't finished writing yet, retry up to this many times
+# with this many seconds between attempts.
+_H5_RETRY_LIMIT = 10
+_H5_RETRY_DELAY = 5  # seconds
 
 from app import get_logger
 from app.chap import setup_raw, setup_strain, update_raw, update_strain
@@ -100,8 +107,19 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
     """
     logger.debug(f"update_dataset_configs({dataset_name}, {scan_numbers})")
     update_dataset_configs(dataset_name, scan_numbers)
-    logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_numbers}, {data_nxs})")
-    update_raw(map_yaml, spec_file, scan_numbers, data_nxs)
+    for attempt in range(1, _H5_RETRY_LIMIT + 1):
+        try:
+            logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_numbers}, {data_nxs})")
+            update_raw(map_yaml, spec_file, scan_numbers, data_nxs)
+            break
+        except OSError as exc:
+            if "truncated file" not in str(exc) or attempt == _H5_RETRY_LIMIT:
+                raise
+            logger.warning(
+                f"Detector h5 not ready yet (attempt {attempt}/{_H5_RETRY_LIMIT}), "
+                f"retrying in {_H5_RETRY_DELAY}s: {exc}"
+            )
+            time.sleep(_H5_RETRY_DELAY)
     logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_numbers}, {idx_slice}, {results_json})")
     update_strain(data_nxs, path_prefix, scan_numbers, idx_slice, results_json)
     logger.info("Done with update")
