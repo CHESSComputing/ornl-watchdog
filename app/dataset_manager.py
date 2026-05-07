@@ -3,8 +3,6 @@
 """Manages datasets"""
 
 import csv
-import yaml
-from pathlib import Path
 
 from app import get_logger
 from app.pipeline_manager import submit_setup, submit_update
@@ -47,6 +45,7 @@ def initialize_dataset(dataset_name):
         )
         get_state().datasets[dataset_name] = {
             "current_update": 0,
+            "scan_numbers": [],
         }
         get_state().write()
 
@@ -95,16 +94,6 @@ def update_dataset(dataset_name, locations_csv):
         f"{locations_csv} contains {len(new_locations)} new locations."
     )
 
-    if init:
-        scan_start_idx = 0
-    else:
-        # Record the number of scans already in the map before this update
-        # so we know which map-array indices the new scans correspond to.
-        analysis_dir = Path(get_state().analysis_root) / dataset_name
-        with open(analysis_dir / "map_config.yaml") as f:
-            existing_map_config = yaml.safe_load(f)
-        scan_start_idx = len(existing_map_config["spec_scans"][0]["scan_numbers"])
-
     # Collect data for each new location; all work (config updates,
     # state writes, daemon calls) happens inside the final callback so
     # that every SPEC scan number is known before processing begins.
@@ -134,12 +123,20 @@ def update_dataset(dataset_name, locations_csv):
                 initialize_dataset(dataset_name)
             if i == n - 1:
                 # All scans for this update are complete.
-                get_state().datasets[dataset_name]["current_update"] += 1
+                # Snapshot both indices before mutating state so that a
+                # concurrently-arriving CSV sees the updated values when its
+                # own last callback runs (SPEC worker is single-threaded).
+                ds = get_state().datasets[dataset_name]
+                scan_start_idx = len(ds.get("scan_numbers", []))
+                update_i = ds["current_update"]
+                ds["current_update"] += 1
+                ds.setdefault("scan_numbers", []).extend(scan_numbers)
                 submit_update(
                     dataset_name,
                     get_state().spec.spec_file,
                     scan_numbers,
                     scan_start_idx,
+                    update_i,
                 )
             else:
                 # Queue up the NEXT scan & callback

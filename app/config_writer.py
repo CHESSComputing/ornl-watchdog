@@ -208,17 +208,21 @@ def create_dataset_configs(dataset_name, spec_file):
     logger.info(f"Created configs for {dataset_name}")
 
 
-def update_dataset_configs(dataset_name, scan_numbers):
+def update_dataset_configs(dataset_name, scan_numbers, update_i):
     """Append new scan numbers to an existing dataset's CHAP configurations.
 
     Updates ``map_config.yaml`` by extending the ``spec_scans[0].scan_numbers``
     list, and updates ``pipeline.yaml`` by adding a new update-stage entry
-    keyed by the current update index from application state.
+    keyed by *update_i*.
 
     :param dataset_name: Name of the dataset to update.
     :type dataset_name: str
     :param scan_numbers: SPEC scan numbers collected during this update.
     :type scan_numbers: list[int]
+    :param update_i: Zero-based index of this update batch, captured at
+        callback time so it is correct even if further updates are queued
+        before this pipeline task runs.
+    :type update_i: int
     """
     _state = get_state()
     analysis_dir = Path(_state.analysis_root) / dataset_name
@@ -245,7 +249,6 @@ def update_dataset_configs(dataset_name, scan_numbers):
     logger.debug(f"Updating {pipeline_yaml}")
     with open(pipeline_yaml, "r") as f:
         pipeline_config = yaml.safe_load(f)
-    update_i = _state.datasets[dataset_name]["current_update"]
     logger.debug(f"update_i = {update_i}")
     logger.debug(f"spec_file = {map_config['spec_scans'][0]['spec_file']}")
     pipeline_config[f"update_map_{update_i}"] = [

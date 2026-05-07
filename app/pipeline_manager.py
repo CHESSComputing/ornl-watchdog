@@ -74,7 +74,7 @@ def _do_setup(dataset_name, spec_file, map_yaml, data_nxs, nxpath):
 
 
 def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
-               data_nxs, path_prefix, idx_slice, results_json):
+               data_nxs, path_prefix, idx_slice, update_i, results_json):
     """Update CHAP config files and run the update pipeline for one scan.
 
     Called by the worker thread.  Runs :func:`update_dataset_configs` to
@@ -98,15 +98,19 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
         ``NexusValuesWriter`` (e.g. ``/dataset1_strain_analysis/``).
     :type path_prefix: str
     :param idx_slice: Write-index slice for ``NexusValuesWriter``, as a
-        dict with ``start`` and ``stop`` keys.
+        dict with ``start`` and ``stop`` keys.  Captured at callback time
+        so it is correct even if further updates queue before this task
+        runs.
     :type idx_slice: dict
+    :param update_i: Zero-based update index, captured at callback time.
+    :type update_i: int
     :param results_json: Filename of JSON file for storing simplified
         results for easy access by processes that autonomously drive
         experiments.
     :type results_json: str
     """
-    logger.debug(f"update_dataset_configs({dataset_name}, {scan_numbers})")
-    update_dataset_configs(dataset_name, scan_numbers)
+    logger.debug(f"update_dataset_configs({dataset_name}, {scan_numbers}, {update_i})")
+    update_dataset_configs(dataset_name, scan_numbers, update_i)
     for attempt in range(1, _H5_RETRY_LIMIT + 1):
         try:
             logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_numbers}, {data_nxs})")
@@ -149,7 +153,8 @@ def submit_setup(dataset_name, spec_file):
     ))
 
 
-def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx):
+def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx,
+                  update_i):
     """Queue config-writes and update pipelines for a batch of new scans.
 
     Derives ``map_yaml``, ``data_nxs``, and ``path_prefix`` from
@@ -164,8 +169,13 @@ def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx):
     :param scan_numbers: SPEC scan numbers collected during this update.
     :type scan_numbers: list[int]
     :param scan_start_idx: Index in the output map array at which the
-        first scan in *scan_numbers* should be written.
+        first scan in *scan_numbers* should be written.  Must be captured
+        at SPEC-callback time (not at watcher-thread time) so it reflects
+        all previously committed updates.
     :type scan_start_idx: int
+    :param update_i: Zero-based update index for this batch, captured at
+        SPEC-callback time before incrementing the counter.
+    :type update_i: int
     """
     state = get_state()
     analysis_dir = Path(state.analysis_root) / dataset_name
@@ -181,6 +191,7 @@ def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx):
             data_nxs, path_prefix,
             {"start": scan_start_idx,
              "stop": scan_start_idx + len(scan_numbers)},
+            update_i,
             results_json,
         ),
         {}
