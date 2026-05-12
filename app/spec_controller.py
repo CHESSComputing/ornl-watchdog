@@ -149,12 +149,15 @@ class SpecController:
             )
             result = self.run_with_timeout(self.client.__aenter__)
 
-            if not isinstance(result, Exception) and self.client._connection.is_connected:
+            if not isinstance(result, Exception) \
+               and self.client._connection.is_connected:
                 logger.info("Connected to SPEC server")
                 return
 
             if isinstance(result, Exception):
-                logger.warning(f"Connection attempt {attempt} raised: {result!r}")
+                logger.warning(
+                    f"Connection attempt {attempt} raised: {result!r}"
+                )
                 traceback.print_exc()
             else:
                 logger.warning(
@@ -210,8 +213,21 @@ class SpecController:
 
         logger.info(f"Sending SPEC command: {command}")
         result = self.run_with_timeout(self.client.exec, command)
+        log_msg = f"Response from {command}: {result} (type: {type(result)})"
         if isinstance(result, Exception):
-            logger.error(f"{command}: {result}")
+            # if isinstance(result, concurrent.futures._base.TimeoutError):
+            #     # Timeout error
+            #     pass
+            # elif isinstance(
+            #         result,
+            #         pyspec._connection.client_connection.RemoteException):
+            #     # SPEC error
+            #     pass
+            log_method = logger.error
+        else:
+            log_method = logger.info
+        log_method(log_msg)
+        return result
 
     def _worker_loop(self):
         """Continuously drain the command queue in a background thread.
@@ -228,7 +244,8 @@ class SpecController:
                     self._send(cmd)
                 if callback:
                     logger.info(
-                        f"Running callback after {', '.join([cmd for cmd in commands])}"
+                        "Running callback after "
+                        +f"{', '.join([cmd for cmd in commands])}"
                     )
                     callback()
             except Exception as e:
