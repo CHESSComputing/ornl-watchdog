@@ -106,8 +106,13 @@ class SpecController:
             coroutine(*coroutine_args, **coroutine_kwargs),
             self.async_event_loop,
         )
+        # Force timeout to 3 hours if it's a wbtseries (to
+        # handle holding pattern from beam losses)
+        cmd = str(coroutine_args)
+        timeout = 10800 if cmd.startswith("wbtseries") else self.spec_timeout
+        logger.debug(f"timeout = {timeout}")
         try:
-            return future.result(timeout=self.spec_timeout)
+            return future.result(timeout=timeout)
         except Exception as e:
             future.cancel()
             return e
