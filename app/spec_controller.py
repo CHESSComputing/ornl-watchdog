@@ -195,6 +195,23 @@ class SpecController:
         """
         self.queue.put((command_sequence, callback))
 
+    async def client_exec(self, command):
+        """Differs only slightly from ``self.client.exec``: execute a
+        command on the SPEC server. If this task raises an exception
+        (e.g. due to a timeout), the client will NOT send an abourt
+        message to the server to stop the execution of the remote
+        function.
+
+        :param command: SPEC command string to execute.
+        :type command: str
+        """
+        async def remote_cmd(command):
+            from pyspec._connection.protocol import Command, Header
+            return await self.client._connection._send_with_reply(
+                Header(Command.CMD_WITH_RETURN), data=command
+            )
+        return await remote_cmd(command)
+
     def _send(self, command):
         """Send a single SPEC command, reconnecting first if the connection is lost.
 
@@ -213,7 +230,7 @@ class SpecController:
             self._connect()
 
         logger.info(f"Sending SPEC command: {command}")
-        result = self.run_with_timeout(self.client.exec, command)
+        result = self.run_with_timeout(self.client_exec, command)
         log_msg = f"Response from {command}: {result} (type: {type(result)})"
         if isinstance(result, Exception):
             # if isinstance(result, concurrent.futures._base.TimeoutError):
