@@ -86,6 +86,7 @@ class SpecController:
         self._scan_n = self.client.var("SCAN_N")
         self._outfiles = self.client.var("OUTFILES")
         self._datafile = self.client.var("DATAFILE")
+        self._status_ready = self.client.status().ready
 
         self.worker.start()
 
@@ -241,6 +242,9 @@ class SpecController:
             commands, callback = self.queue.get()
             try:
                 for cmd in commands:
+                    while not self.status_ready:
+                        logger.warning("SPEC not ready; waiting for ready")
+                        time.sleep(5)
                     self._send(cmd)
                 if callback:
                     logger.info(
@@ -317,3 +321,12 @@ class SpecController:
     @property
     def spec_file(self):
         return self.outfiles[(self.datafile, "path")].replace("daq", "raw")
+
+    @property
+    def status_ready(self):
+        logger.info("Getting status/ready")
+        result = self.run_with_timeout(self._status_ready.get)
+        if isinstance(result, Exception):
+            logger.error(result)
+        logger.debug(f"Got status/ready: {result}")
+        return result
