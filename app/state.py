@@ -93,6 +93,9 @@ class StateConfig(BaseModel):
     :vartype calibration_yaml: pathlib.Path
     :ivar strain_analysis_yaml: Path to strain analysis configuration file.
     :vartype strain_analysis_yaml: pathlib.Path
+    :ivar nsdf_root: Root directory for NeXus files to be visualized
+        with NSDF (ORNL only). Defaults to None
+    :vartype nsdf_root: pathlib.Path, optional
     :ivar datasets: Mapping of dataset name to per-dataset runtime state.
     :vartype datasets: dict
     """
@@ -129,6 +132,9 @@ class StateConfig(BaseModel):
     strain_analysis_yaml: Path = Field(
         default='/nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<btr>/strain_analysis_config.yaml'
     )
+
+    # NSDF directory
+    nsdf_root: Optional[Path] = None # default: '/nfs/chess/nsdf01/nsdf/workflow/'
 
     datasets: dict = {}
 

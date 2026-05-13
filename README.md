@@ -23,6 +23,8 @@ Application to CHESS-side control of ORNL EDD beamtime: SPEC and CHAP
 
    watch_root: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/autonomous-edd/
    analysis_root: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/reduced_data/
+   # Uncomment to make copies of updated nexus files to a separate location for viz
+   # nsdf_root: /nfs/chess/nsdf01/nsdf/workflow/<btr>
 
    detectors_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/xps23_config.yaml
    calibration_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/reduced_data/tth_calibration_config.yaml

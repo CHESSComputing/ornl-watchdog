@@ -4,6 +4,7 @@
 
 from pathlib import Path
 import queue as _queue
+import shutil
 import threading
 import time
 import traceback
@@ -127,7 +128,13 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
     logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_numbers}, {idx_slice}, {results_json})")
     update_strain(data_nxs, path_prefix, scan_numbers, idx_slice, results_json)
     logger.info("Done with update")
-
+    nsdf_root = get_state().nsdf_root
+    if if nsdf_root is not None:
+        nsdf_nxs = f"{nsdf_root}/{dataset_name}.nxs"
+        logger.info(f"Copying {data_nxs} to {nsdf_nxs}")
+        shutil.copy(data_nxs, nsdf_nxs)
+    else:
+        logger.debug("nsdf_root is None; skip copying .nxs file")
 
 def submit_setup(dataset_name, spec_file):
     """Queue the config-write and setup pipeline for a new dataset.
