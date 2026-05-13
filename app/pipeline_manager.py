@@ -110,22 +110,31 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
         experiments.
     :type results_json: str
     """
-    logger.debug(f"update_dataset_configs({dataset_name}, {scan_numbers}, {update_i})")
+    logger.debug(
+        f"update_dataset_configs({dataset_name}, {scan_numbers}, {update_i})"
+    )
     update_dataset_configs(dataset_name, scan_numbers, update_i)
     for attempt in range(1, _H5_RETRY_LIMIT + 1):
         try:
-            logger.debug(f"update_raw({map_yaml}, {spec_file}, {scan_numbers}, {data_nxs})")
+            logger.debug(
+                f"update_raw({map_yaml}, {spec_file}, "
+                + f"{scan_numbers}, {data_nxs})"
+            )
             update_raw(map_yaml, spec_file, scan_numbers, data_nxs)
             break
         except OSError as exc:
             if "truncated file" not in str(exc) or attempt == _H5_RETRY_LIMIT:
                 raise
             logger.warning(
-                f"Detector h5 not ready yet (attempt {attempt}/{_H5_RETRY_LIMIT}), "
+                "Detector h5 not ready yet "
+                f"(attempt {attempt}/{_H5_RETRY_LIMIT}), "
                 f"retrying in {_H5_RETRY_DELAY}s: {exc}"
             )
             time.sleep(_H5_RETRY_DELAY)
-    logger.debug(f"update_strain({data_nxs}, {path_prefix}, {scan_numbers}, {idx_slice}, {results_json})")
+    logger.debug(
+        f"update_strain({data_nxs}, {path_prefix}, "
+        + f"{scan_numbers}, {idx_slice}, {results_json})"
+    )
     update_strain(data_nxs, path_prefix, scan_numbers, idx_slice, results_json)
     logger.info("Done with update")
     nsdf_root = get_state().nsdf_root
