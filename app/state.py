@@ -12,7 +12,7 @@ from typing import Optional
 import yaml
 
 from app import get_logger
-from app.spec_controller import SpecController
+from app.spec_controller import SpecController, TestSpecController
 
 
 logger = get_logger("state")
@@ -61,9 +61,11 @@ class StateConfig(BaseModel):
     """Configuration and runtime state for the SPEC watchdog daemon.
 
     Constructed from a YAML state file via :func:`load_state`.  After
-    construction a :class:`~app.spec_controller.SpecController` is
-    automatically created from the SPEC connection parameters by the
-    :meth:`validate_spec` model validator.
+    construction a SPEC controller is automatically attached by the
+    :meth:`validate_spec` model validator — a
+    :class:`~app.spec_controller.SpecController` when :attr:`spec_test` is
+    ``False`` (the default), or a
+    :class:`~app.spec_controller.TestSpecController` when it is ``True``.
 
     :ivar filename: Absolute path to the YAML state file on disk.
     :vartype filename: pathlib.Path
@@ -73,8 +75,13 @@ class StateConfig(BaseModel):
     :vartype spec_port: int
     :ivar spec_timeout: Timeout for SPEC commands in seconds.
     :vartype spec_timeout: int
-    :ivar spec: Live SPEC client controller (populated by validator).
-    :vartype spec: app.spec_controller.SpecController or None
+    :ivar spec_test: When ``True``, use
+        :class:`~app.spec_controller.TestSpecController` instead of
+        connecting to a real SPEC server.
+    :vartype spec_test: bool
+    :ivar spec: Live SPEC controller (populated by validator).
+    :vartype spec: app.spec_controller.SpecController or
+        app.spec_controller.TestSpecController or None
     :ivar kuka_positioner_url: Base URL of the Kuka positioner HTTP server,
         or ``None`` to use SPEC motor moves for sample positioning.
     :vartype kuka_positioner_url: str or None
@@ -96,6 +103,9 @@ class StateConfig(BaseModel):
     :vartype calibration_yaml: pathlib.Path
     :ivar strain_analysis_yaml: Path to strain analysis configuration file.
     :vartype strain_analysis_yaml: pathlib.Path
+    :ivar analysis_test: When ``True``, enqueue :func:`_test_setup` /
+        :func:`_test_update` instead of the real CHAP pipelines.
+    :vartype analysis_test: bool
     :ivar nsdf_root: Root directory for NeXus files to be visualized
         with NSDF (ORNL only). Defaults to None
     :vartype nsdf_root: pathlib.Path, optional
@@ -110,6 +120,7 @@ class StateConfig(BaseModel):
     spec_host: str = Field(default="localhost")
     spec_port: int = Field(default=6511)
     spec_timeout: int = Field(default=30)
+    spec_test: bool = Field(default=False)
     spec: Optional[SpecController] = None
 
     # Sample positioner settings
@@ -139,14 +150,21 @@ class StateConfig(BaseModel):
         default='/nfs/chess/aux/reduced_data/cycles/<cycle>/<station>/<btr>/strain_analysis_config.yaml'
     )
 
+    # Analysis test mode
+    analysis_test: bool = Field(default=False)
+
     # NSDF directory
     nsdf_root: Optional[Path] = None # default: '/nfs/chess/nsdf01/nsdf/workflow/'
 
     datasets: dict = {}
 
     @model_validator(mode="after")
-    def validate_spec(self) -> SpecController:
-        """Instantiate and attach a :class:`~app.spec_controller.SpecController`.
+    def validate_spec(self) -> "StateConfig":
+        """Instantiate and attach a SPEC controller.
+
+        Uses :class:`~app.spec_controller.TestSpecController` when
+        :attr:`spec_test` is ``True``, otherwise
+        :class:`~app.spec_controller.SpecController`.
 
         Called automatically by Pydantic after the model is constructed.
         Reads SPEC connection and scan parameters from the validated fields.
@@ -155,7 +173,8 @@ class StateConfig(BaseModel):
             :attr:`spec` populated.
         :rtype: StateConfig
         """
-        self.spec = SpecController(
+        cls = TestSpecController if self.spec_test else SpecController
+        self.spec = cls(
             self.spec_host, self.spec_port, self.spec_timeout,
             self.labx_motor, self.labz_motor,
             self.tseries_npts, self.tseries_exposure,

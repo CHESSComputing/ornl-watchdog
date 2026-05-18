@@ -381,3 +381,169 @@ class SpecController:
             logger.error(result)
         logger.debug(f"Got status/ready: {result}")
         return result
+
+
+class TestSpecController:
+    """Drop-in replacement for :class:`SpecController` that never connects to
+    or sends commands through a real ``pyspec`` server.
+
+    All commands are logged at INFO level and discarded.  Properties return
+    plausible dummy values so the rest of the application can exercise its
+    logic without a live SPEC server.
+
+    The constructor accepts the same arguments as :class:`SpecController` so
+    :class:`~app.state.StateConfig` can create either class identically by
+    setting :attr:`~app.state.StateConfig.spec_test` to ``True``.
+
+    :ivar spec_host: Hostname or IP address passed in at construction.
+    :vartype spec_host: str
+    :ivar spec_port: Port number passed in at construction.
+    :vartype spec_port: int
+    :ivar spec_timeout: Timeout value passed in at construction (unused).
+    :vartype spec_timeout: int
+    :ivar labx_motor: SPEC mnemonic for the labx motor.
+    :vartype labx_motor: str
+    :ivar labz_motor: SPEC mnemonic for the labz motor.
+    :vartype labz_motor: str
+    :ivar tseries_npts: Number of points per ``tseries`` acquisition.
+    :vartype tseries_npts: int
+    :ivar tseries_exposure: Exposure time per ``tseries`` point in seconds.
+    :vartype tseries_exposure: float
+    """
+
+    def __init__(
+            self,
+            spec_host, spec_port, spec_timeout,
+            labx_motor, labz_motor,
+            tseries_npts, tseries_exposure
+    ):
+        """Initialise the test controller and start the worker thread.
+
+        No network connection is made.  Parameters are stored for
+        informational purposes and to build command strings that are logged
+        but not transmitted.
+
+        :param spec_host: Hostname or IP address (stored, not connected to).
+        :type spec_host: str
+        :param spec_port: Port number (stored, not connected to).
+        :type spec_port: int
+        :param spec_timeout: Per-command timeout in seconds (stored, unused).
+        :type spec_timeout: int
+        :param labx_motor: SPEC mnemonic for the labx motor.
+        :type labx_motor: str
+        :param labz_motor: SPEC mnemonic for the labz motor.
+        :type labz_motor: str
+        :param tseries_npts: Number of points per ``tseries`` acquisition.
+        :type tseries_npts: int
+        :param tseries_exposure: Exposure time per ``tseries`` point in seconds.
+        :type tseries_exposure: float
+        """
+        self.spec_host = spec_host
+        self.spec_port = spec_port
+        self.spec_timeout = spec_timeout
+        self.labx_motor = labx_motor
+        self.labz_motor = labz_motor
+        self.tseries_npts = tseries_npts
+        self.tseries_exposure = tseries_exposure
+
+        self._scan_n = 0
+        self.queue = queue.Queue()
+        self.worker = threading.Thread(target=self._worker_loop, daemon=True)
+        self.worker.start()
+        logger.info(
+            f"TestSpecController initialised (no connection to "
+            f"{spec_host}:{spec_port})"
+        )
+
+    def enqueue(self, command_sequence, callback=None):
+        """Add a SPEC command sequence to the processing queue.
+
+        The sequence is consumed by the background worker thread in FIFO
+        order.  Commands are logged rather than transmitted.  The optional
+        *callback* is called once after the last command in
+        *command_sequence* is processed.
+
+        :param command_sequence: Ordered list of SPEC command strings.
+        :type command_sequence: list[str]
+        :param callback: Optional zero-argument callable invoked after the
+            sequence completes.
+        :type callback: callable or None
+        """
+        self.queue.put((command_sequence, callback))
+
+    def _worker_loop(self):
+        """Continuously drain the command queue in a background thread.
+
+        Blocks on :attr:`queue`, dequeues ``(commands, callback)`` tuples,
+        logs each command at INFO level, increments :attr:`_scan_n` once
+        per sequence, and then calls *callback* if one was supplied.
+        Exceptions are caught and logged so the worker never exits
+        unintentionally.
+        """
+        while True:
+            commands, callback = self.queue.get()
+            try:
+                for cmd in commands:
+                    logger.info(f"[TEST-SPEC] command: {cmd}")
+                self._scan_n += 1
+                if callback:
+                    callback()
+            except Exception as e:
+                logger.error(f"{e!r}")
+                traceback.print_exc()
+            finally:
+                self.queue.task_done()
+
+    def collect_point(self, dataset, labx, labz, callback=None):
+        """Enqueue a fake data-collection sequence for a single sample point.
+
+        Builds and enqueues the same four-command sequence as
+        :meth:`SpecController.collect_point`; commands are logged rather
+        than transmitted.
+
+        :param dataset: Dataset / sample name passed to ``newsample``.
+        :type dataset: str
+        :param labx: Target labx motor position.
+        :type labx: float or str
+        :param labz: Target labz motor position.
+        :type labz: float or str
+        :param callback: Optional zero-argument callable invoked after the
+            sequence completes.
+        :type callback: callable or None
+        """
+        commands = [
+            f"newsample \"{dataset}\" 0",
+            f"umv {self.labx_motor} {labx}",
+            f"umv {self.labz_motor} {labz}",
+            f"wbtseries {self.tseries_npts} {self.tseries_exposure}",
+        ]
+        self.enqueue(commands, callback)
+
+    @property
+    def scan_n(self):
+        """Monotonically increasing scan counter.
+
+        Incremented once per completed command sequence by the worker
+        thread.  Logs and returns the current value.
+
+        :returns: Current fake scan number.
+        :rtype: int
+        """
+        logger.info(f"[TEST-SPEC] SCAN_N = {self._scan_n}")
+        return self._scan_n
+
+    @property
+    def spec_file(self):
+        """Fake SPEC data file path returned as a stand-in during testing.
+
+        :rtype: str
+        """
+        return "/nfs/chess/raw/test/spec.log"
+
+    @property
+    def status_ready(self):
+        """Always returns ``True`` — the test controller is always ready.
+
+        :rtype: bool
+        """
+        return True
