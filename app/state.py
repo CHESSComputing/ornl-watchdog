@@ -112,8 +112,8 @@ class StateConfig(BaseModel):
     # Scan settings
     labx_motor: str = Field(default="labx")
     labz_motor: str = Field(default="labz")
-    tseries_npts: int = Field(default=10)
-    tseries_exposure: float = Field(default=0.1)
+    tseries_npts: int = Field(default=1)
+    tseries_exposure: float = Field(default=10)
 
     # Automation directory
     watch_root: Path = Field(
