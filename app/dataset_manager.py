@@ -136,14 +136,14 @@ def update_dataset(dataset_name, locations_file):
                 # Queue up the NEXT scan & callback
                 collect_point(
                     dataset_name, new_locations[i + 1],
-                    callback=make_after_collect(i + 1)
+                    callback=make_after_collect(i + 1),
                 )
             get_state().write()
         return after_collect
 
     if new_locations:
         collect_point(
-            dataset_name, new_locations[0], callback=make_after_collect(0)
+            dataset_name, new_locations[0], callback=make_after_collect(0),
         )
 
 
