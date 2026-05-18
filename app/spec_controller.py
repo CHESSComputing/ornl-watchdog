@@ -44,7 +44,8 @@ class SpecController:
             labx_motor, labz_motor,
             tseries_npts, tseries_exposure
     ):
-        """Initialise the controller, connect to SPEC, and start the worker thread.
+        """Initialise the controller, connect to SPEC, and start the
+        worker thread.
 
         :param spec_host: Hostname or IP address of the SPEC server.
         :type spec_host: str
@@ -58,7 +59,8 @@ class SpecController:
         :type labz_motor: str
         :param tseries_npts: Number of points per ``tseries`` acquisition.
         :type tseries_npts: int
-        :param tseries_exposure: Exposure time per ``tseries`` point in seconds.
+        :param tseries_exposure: Exposure time per ``tseries`` point
+            in seconds.
         :type tseries_exposure: float
         """
         self.spec_host = spec_host
@@ -196,11 +198,12 @@ class SpecController:
         self.queue.put((command_sequence, callback))
 
     async def client_exec(self, command):
-        """Differs only slightly from ``self.client.exec``: execute a
-        command on the SPEC server. If this task raises an exception
-        (e.g. due to a timeout), the client will NOT send an abourt
-        message to the server to stop the execution of the remote
-        function.
+        """Execute a command on the SPEC server without sending an
+        abort on timeout.
+
+        Unlike ``self.client.exec``, if this coroutine raises an exception
+        (e.g. due to a timeout), no abort message is sent to the server to
+        stop execution of the remote function.
 
         :param command: SPEC command string to execute.
         :type command: str
@@ -213,7 +216,8 @@ class SpecController:
         return await remote_cmd(command)
 
     def _send(self, command):
-        """Send a single SPEC command, reconnecting first if the connection is lost.
+        """Send a single SPEC command, reconnecting first if the
+        connection is lost.
 
         Checks :attr:`pyspec._connection.connection.Connection.is_connected`
         before each send.  If the connection is down, :meth:`_connect` is
@@ -296,6 +300,7 @@ class SpecController:
             f"umv {self.labx_motor} {labx}",
             f"umv {self.labz_motor} {labz}",
             f"wbtseries {self.tseries_npts} {self.tseries_exposure}"
+            # f"tseries {self.tseries_npts} {self.tseries_exposure}",
         ]
         self.enqueue(commands, callback)
 
@@ -319,6 +324,12 @@ class SpecController:
 
     @property
     def outfiles(self):
+        """Current SPEC ``OUTFILES`` variable.
+
+        Fetches the value from SPEC at call time via
+        :meth:`run_with_timeout`.  Logs and returns the raw value, or
+        the :exc:`Exception` on failure.
+        """
         logger.info(f"Getting OUTFILES from SPEC")
         result = self.run_with_timeout(self._outfiles.get)
         if isinstance(result, Exception):
@@ -328,6 +339,12 @@ class SpecController:
 
     @property
     def datafile(self):
+        """Current SPEC ``DATAFILE`` variable.
+
+        Fetches the value from SPEC at call time via
+        :meth:`run_with_timeout`.  Logs and returns the raw value, or
+        the :exc:`Exception` on failure.
+        """
         logger.info(f"Getting DATAFILE from SPEC")
         result = self.run_with_timeout(self._datafile.get)
         if isinstance(result, Exception):
@@ -337,10 +354,27 @@ class SpecController:
 
     @property
     def spec_file(self):
+        """Absolute path to the current SPEC data file under the
+        ``raw`` tree.
+
+        Derived from ``OUTFILES`` and ``DATAFILE`` by replacing the
+        ``daq`` path component with ``raw``.
+
+        :rtype: str
+        """
         return self.outfiles[(self.datafile, "path")].replace("daq", "raw")
 
     @property
     def status_ready(self):
+        """Whether SPEC is ready to accept a new command
+        (``status/ready`` variable).
+
+        Fetches the value from SPEC at call time via
+        :meth:`run_with_timeout`.  Logs and returns the boolean
+        result, or the :exc:`Exception` on failure.
+
+        :rtype: bool or Exception
+        """
         logger.info("Getting status/ready")
         result = self.run_with_timeout(self._status_ready.get)
         if isinstance(result, Exception):

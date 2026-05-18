@@ -75,6 +75,9 @@ class StateConfig(BaseModel):
     :vartype spec_timeout: int
     :ivar spec: Live SPEC client controller (populated by validator).
     :vartype spec: app.spec_controller.SpecController or None
+    :ivar kuka_positioner_url: Base URL of the Kuka positioner HTTP server,
+        or ``None`` to use SPEC motor moves for sample positioning.
+    :vartype kuka_positioner_url: str or None
     :ivar labx_motor: Mnemonic of the labx motor in SPEC.
     :vartype labx_motor: str
     :ivar labz_motor: Mnemonic of the labz motor in SPEC.
@@ -109,9 +112,12 @@ class StateConfig(BaseModel):
     spec_timeout: int = Field(default=30)
     spec: Optional[SpecController] = None
 
-    # Scan settings
+    # Sample positioner settings
     labx_motor: str = Field(default="labx")
     labz_motor: str = Field(default="labz")
+    kuka_positioner_url: str = None
+
+    # Scan settings
     tseries_npts: int = Field(default=1)
     tseries_exposure: float = Field(default=10)
 

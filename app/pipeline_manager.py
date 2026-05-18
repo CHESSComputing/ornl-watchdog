@@ -55,8 +55,6 @@ def _do_setup(dataset_name, spec_file, map_yaml, data_nxs, nxpath):
     :type dataset_name: str
     :param spec_file: Absolute path to the SPEC log file for this dataset.
     :type spec_file: str
-    :param scan_number: SPEC scan number from the ``newsample`` command.
-    :type scan_number: int
     :param map_yaml: Absolute path to ``map_config.yaml``.
     :type map_yaml: str
     :param data_nxs: Absolute path to the NeXus output file.
