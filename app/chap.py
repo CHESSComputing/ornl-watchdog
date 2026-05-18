@@ -13,7 +13,7 @@ from CHAP.common.reader import NexusReader, YAMLReader
 from CHAP.common.writer import NexusValuesWriter, NexusWriter, JSONWriter
 from CHAP.edd.reader import SliceNXdataReader
 from CHAP.edd.processor import StrainAnalysisProcessor
-from CHAP.common.models import IndexSliceConfig
+from CHAP.common.models.common import IndexSliceConfig
 from CHAP.pipeline import PipelineData
 from CHAP.models import RunConfig
 
