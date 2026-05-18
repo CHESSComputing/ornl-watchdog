@@ -136,7 +136,7 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
     update_strain(data_nxs, path_prefix, scan_numbers, idx_slice, results_json)
     logger.info("Done with update")
     nsdf_root = get_state().nsdf_root
-    if if nsdf_root is not None:
+    if nsdf_root is not None:
         nsdf_nxs = f"{nsdf_root}/{dataset_name}.nxs"
         logger.info(f"Copying {data_nxs} to {nsdf_nxs}")
         shutil.copy(data_nxs, nsdf_nxs)
