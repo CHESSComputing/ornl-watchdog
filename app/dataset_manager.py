@@ -73,7 +73,7 @@ def update_dataset(dataset_name, locations_file):
         locations (``labx, labz`` pairs or Kuka joint angles).
     :type locations_file: str or pathlib.Path
     """
-    logger.info(f"Dataset '{dataset_name}' update detected: {locations_csv}")
+    logger.info(f"Dataset '{dataset_name}' update detected: {locations_file}")
 
     init = False
     if dataset_name not in get_state().datasets:
@@ -165,7 +165,7 @@ def parse_locations_file(locations_file):
     new_locations = []
     _, ext = os.path.splitext(locations_file)
     if ext in (".csv", ".txt"):
-        self.logger.debug(f"Parsing {locations_file} as 2-column CSV")
+        logger.debug(f"Parsing {locations_file} as 2-column CSV")
         with open(locations_file, "r") as f:
             reader = csv.reader(f)
             for row in reader:
@@ -179,7 +179,7 @@ def parse_locations_file(locations_file):
                 except Exception as exc:
                     logger.warning(f"Can't get location: {exc!r}")
     elif ext == ".json":
-        self.logger.debug(
+        logger.debug(
             f"Parsing {locations_file} as Kuka joint angles JSON"
         )
         with open(locations_file, "r") as f:
