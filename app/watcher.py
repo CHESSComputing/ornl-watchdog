@@ -8,6 +8,7 @@ from watchdog.events import LoggingEventHandler
 from app import get_logger
 from app.dataset_manager import initialize_dataset, update_dataset
 
+
 logger = get_logger("watcher")
 
 
@@ -16,8 +17,8 @@ class DatasetWatcher(LoggingEventHandler):
 
     Monitors the configured ``watch_root`` recursively.  When a new
     subdirectory appears it is treated as a new dataset; when a new
-    ``.txt`` file appears inside an existing dataset directory it is
-    treated as a locations update for that dataset.
+    ``.txt``, ``.csv``, or ``.json`` file appears inside an existing
+    dataset directory it is treated as a locations update for that dataset.
     """
 
     def on_created(self, event):
@@ -40,7 +41,7 @@ class DatasetWatcher(LoggingEventHandler):
             logger.info(f"New dataset '{dataset}'")
             # initialize_dataset(dataset)
 
-        elif path.suffix == ".txt":
+        elif path.suffix in (".txt", ".csv", ".json"):
             dataset = path.parent.name
-            logger.info(f"New locations for dataset '{dataset}'")
+            logger.info(f"New locations file for dataset '{dataset}'")
             update_dataset(dataset, path)
