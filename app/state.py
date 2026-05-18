@@ -6,6 +6,7 @@ future).
 """
 
 import logging
+import numpy as np
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Optional
@@ -85,6 +86,10 @@ class StateConfig(BaseModel):
     :ivar kuka_positioner_url: Base URL of the Kuka positioner HTTP server,
         or ``None`` to use SPEC motor moves for sample positioning.
     :vartype kuka_positioner_url: str or None
+    :ivar kuka_transform_matrix: Transformation matrix for converting
+        position matrices in sample / lab coordinates to "point cloud"
+        coordinates, defaults to ``np.eye(4)``.
+    :vartype kuka_transform_matrix: nump.ndarray, optional
     :ivar labx_motor: Mnemonic of the labx motor in SPEC.
     :vartype labx_motor: str
     :ivar labz_motor: Mnemonic of the labz motor in SPEC.
@@ -127,6 +132,7 @@ class StateConfig(BaseModel):
     labx_motor: str = Field(default="labx")
     labz_motor: str = Field(default="labz")
     kuka_positioner_url: str = None
+    kuka_transform_matrix: np.ndarray = np.eye(4)
 
     # Scan settings
     tseries_npts: int = Field(default=1)

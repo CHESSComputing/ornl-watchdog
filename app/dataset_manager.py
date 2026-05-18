@@ -180,10 +180,10 @@ def parse_locations_file(locations_file):
                     logger.warning(f"Can't get location: {exc!r}")
     elif ext == ".json":
         logger.debug(
-            f"Parsing {locations_file} as Kuka joint angles JSON"
+            f"Parsing {locations_file} as Kuka poses JSON"
         )
         with open(locations_file, "r") as f:
-            new_locations = json.load(f) # OK as is, or more parsing needed?
+            new_locations = json.load(f)
     else:
         logger.error(f"Locations file extension {ext} not supported")
     return new_locations
