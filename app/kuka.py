@@ -33,6 +33,8 @@ def location_to_pose(location):
     else:
         # a pose was already given
         pose = location
+    if isinstance(pose, np.ndarray):
+        pose = pose.tolist()
     return pose
 
 
@@ -60,11 +62,11 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
     }
     while not success and (attempt <= max_retries or max_retries < 0):
         logger.info(
-            f"POST {request_data} to {state.kuka_positioner_url} "
+            f"POST {request_data} to {state.kuka_positioner_url}/move_kuka "
             f"(attempt {attempt}/{max_retries})"
         )
         resp = requests.post(
-            url=state.kuka_positioner_url,
+            url=f"{state.kuka_positioner_url}/move_kuka",
             json=request_data,
             timeout=state.spec_timeout, # Use same timeout as SPEC for now
         )
@@ -75,10 +77,11 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
             logger.info("Success")
         else:
             logger.error(f"Error: {resp.reason}")
-            if resp.status_code in (500, 501):
+            if resp.status_code in (500, 501, 502):
                 # Sleep & try again
                 # 500: Robot already in motion
                 # 501: Failed to move to target pose
+                # 502: Kuka unreachable?
                 time.sleep(sleep_duration)
             elif resp.status_code == 400:
                 # Invalid position, DO NOT try again
