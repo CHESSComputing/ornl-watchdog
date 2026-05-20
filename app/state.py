@@ -5,11 +5,19 @@ dataset update numbers, but could be extended to other things in the
 future).
 """
 
+from functools import cached_property
 import logging
-import numpy as np
 from pathlib import Path
-from pydantic import BaseModel, ConfigDict, Field, model_validator, PlainSerializer
 from typing import Annotated, Optional
+
+import numpy as np
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+    PlainSerializer
+)
 import yaml
 
 from app import get_logger
@@ -169,6 +177,10 @@ class StateConfig(BaseModel):
     nsdf_root: Optional[Path] = None # default: '/nfs/chess/nsdf01/nsdf/workflow/'
 
     datasets: dict = {}
+
+    @cached_property
+    def kuka_transform_matrix_inverse(self):
+        return np.linalg.inv(self.kuka_transform_matrix)
 
     @model_validator(mode="after")
     def validate_spec(self) -> "StateConfig":
