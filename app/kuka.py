@@ -25,18 +25,17 @@ def location_to_pose(location):
     """
     pose, labx, labz = None, None, None
     if len(location) == 2:
-        # labx, labz coordinates were given; transform it to pose
+        # labx, labz coordinates were given; transform to pose
         labx, labz = location
-        v = np.asarray([labx, 0, labz, 0, 0, 0])
+        v = np.asarray([-labx, 0, -labz, 0, 0, 0]) # should be -ve to
+                                                   # be in "sample frame"?
         position = exp_se3(v)
-        pose = get_state().kuka_transform_matrix * position
+        pose = get_state().kuka_sample_to_flange @ position
     else:
         # a pose was given; transform to labx, labz coorinates
-        state = get_state()
         pose = np.asarray(location)
-        position = state.kuka_transform_matrix_inverse @ pose
-        labx = position[0, 3]
-        labz = position[2, 3]
+        labx = -pose[0, 3]
+        labz = -pose[2, 3]
     if isinstance(pose, np.ndarray):
         pose = pose.tolist()
     return pose, labx, labz
