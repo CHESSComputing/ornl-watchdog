@@ -11,6 +11,7 @@ import time
 from app import get_logger
 from app.state import get_state
 
+
 logger = get_logger("kuka")
 
 
@@ -50,16 +51,20 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
         for positioning the Kuka when applicable. Defaults to 5.
     :type sleep_duration: float, optional
     """
+    state = get_state()
     success = False
     attempt = 1
-    request_data = {"pose_data": location_to_pose(location)}
+    request_data = {
+        "target_pose": location_to_pose(location),
+        "control_frame": "lab",
+    }
     while not success and (attempt <= max_retries or max_retries < 0):
         logger.info(
-            f"POST {request_data} to {state.kuka_positioner_server_url} "
+            f"POST {request_data} to {state.kuka_positioner_url} "
             f"(attempt {attempt}/{max_retries})"
         )
         resp = requests.post(
-            url=state.kuka_positioner_server_url,
+            url=state.kuka_positioner_url,
             json=request_data,
             timeout=state.spec_timeout, # Use same timeout as SPEC for now
         )
@@ -73,7 +78,7 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
             if resp.status_code in (500, 501):
                 # Sleep & try again
                 # 500: Robot already in motion
-                # 501: Failed to mode to target pose
+                # 501: Failed to move to target pose
                 time.sleep(sleep_duration)
             elif resp.status_code == 400:
                 # Invalid position, DO NOT try again
