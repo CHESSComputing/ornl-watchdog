@@ -15,8 +15,10 @@ logger = get_logger("config_writer")
 
 
 class VerboseSafeDumper(yaml.SafeDumper):
-    """Dumper to exlude all aliases from YAML files."""
+    """Dumper to exclude all aliases from YAML files."""
     def ignore_aliases(self, data):
+        """Always return ``True`` to suppress YAML aliases for all
+        values."""
         return True
 
 

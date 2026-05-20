@@ -13,7 +13,7 @@ from CHAP.common.reader import NexusReader, YAMLReader
 from CHAP.common.writer import NexusValuesWriter, NexusWriter, JSONWriter
 from CHAP.edd.reader import SliceNXdataReader
 from CHAP.edd.processor import StrainAnalysisProcessor
-from CHAP.common.models import IndexSliceConfig
+from CHAP.common.models.common import IndexSliceConfig
 from CHAP.pipeline import PipelineData
 from CHAP.models import RunConfig
 
@@ -73,6 +73,9 @@ def load_data():
         )
 
 def _strain_cfg():
+    """Return the cached strain-analysis ``PipelineData``, or ``None``
+    if not loaded.
+    """
     try:
         global _STRAIN_CFG
         return _STRAIN_CFG
@@ -81,6 +84,9 @@ def _strain_cfg():
         return None
 
 def _tth_cfg():
+    """Return the cached tth-calibration ``PipelineData``, or ``None``
+    if not loaded.
+    """
     try:
         global _TTH_CFG
         return _TTH_CFG
@@ -89,6 +95,9 @@ def _tth_cfg():
         return None
 
 def _detectors_cfg():
+    """Return the cached detector-config ``PipelineData``, or ``None``
+    if not loaded.
+    """
     try:
         global _DETECTORS_CONFIG
         return _DETECTORS_CONFIG
@@ -97,6 +106,9 @@ def _detectors_cfg():
         return None
 
 def _init_data():
+    """Return a fresh list of the static ``PipelineData`` items needed
+    to initialise a processor.
+    """
     return [_strain_cfg(), _tth_cfg()]
 
 # Fixed args for the processor and writer (everything except the
@@ -383,8 +395,8 @@ ight-0212-b/spec.log
     :param spec_file: Path to the SPEC file for this scan (relative to
         ``RUN_CFG.inputdir`` or absolute).
     :type spec_file: str
-    :param scan_number: Scan number to extract from ``spec_file``.
-    :type scan_number: int
+    :param scan_numbers: Scan numbers to extract from ``spec_file``.
+    :type scan_numbers: list[int]
     :param data_nxs: NeXus output filename (relative to
         ``RUN_CFG.outputdir``).
     :type data_nxs: str
@@ -452,6 +464,9 @@ def update_strain(data_nxs: str, path_prefix: str,
     :param idx_slice: Slice configuration passed to ``NexusValuesWriter``
         as the write index.
     :type idx_slice: CHAP.common.models.IndexSliceConfig
+    :param results_json: Path to the JSON file for storing simplified
+        strain results.
+    :type results_json: str
     """
     # Fresh data list each time
     data = _init_data()

@@ -55,6 +55,8 @@ def main():
     observer.join()
 
 def run():
+    """Parse command-line arguments, load application state, and call
+    :func:`main`."""
     parser = argparse.ArgumentParser(
         description='''wacthdog daemon for 2026-2 autonomous ORNL EDXRD
         Experiment at 1a3.'''

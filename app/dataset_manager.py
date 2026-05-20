@@ -3,8 +3,11 @@
 """Manages datasets"""
 
 import csv
+import json
+import os
 
 from app import get_logger
+from app.kuka import position_kuka
 from app.pipeline_manager import submit_setup, submit_update
 from app.state import get_state
 
@@ -52,24 +55,25 @@ def initialize_dataset(dataset_name):
     after_newsample()
 
 
-def update_dataset(dataset_name, locations_csv):
+def update_dataset(dataset_name, locations_file):
     """Collect data at new sample locations and update processing configs.
 
-    Parses *locations_csv* for ``(labx, labz)`` coordinate pairs, enqueues
-    a :meth:`~app.spec_controller.SpecController.collect_point` command
+    Parses *locations_file* for new ``(labx, labz)`` coordinate pairs,
+    enqueues a
+    :meth:`~app.spec_controller.SpecController.collect_point` command
     sequence for each coordinate.  After the last scan completes,
-    updates the CHAP configuration files, increments the update counter,
-    writes state to disk, and sends update requests to the CHAP daemon —
-    all within the final collect callback so that all SPEC scan numbers
-    are known before the daemon is contacted.
+    updates the CHAP configuration files, increments the update
+    counter, writes state to disk, and sends update requests to the
+    CHAP daemon — all within the final collect callback so that all
+    SPEC scan numbers are known before the daemon is contacted.
 
     :param dataset_name: Name of the dataset to update.
     :type dataset_name: str
-    :param locations_csv: Path to a CSV file whose rows are
-        ``labx, labz`` motor positions.
-    :type locations_csv: str or pathlib.Path
+    :param locations_file: Path to a CSV/JSON file describing sample
+        locations (``labx, labz`` pairs or Kuka joint angles).
+    :type locations_file: str or pathlib.Path
     """
-    logger.info(f"Dataset '{dataset_name}' update detected: {locations_csv}")
+    logger.info(f"Dataset '{dataset_name}' update detected: {locations_file}")
 
     init = False
     if dataset_name not in get_state().datasets:
@@ -77,21 +81,9 @@ def update_dataset(dataset_name, locations_csv):
         init = True
 
     # Parse new locations
-    new_locations = []
-    with open(locations_csv, "r") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if len(row) != 2:
-                continue
-            logger.debug(f"row: {row}")
-            try:
-                _row = [float(x.strip()) for x in row]
-                new_locations.append(_row)
-                logger.info(f"Got location: {_row}")
-            except Exception as exc:
-                logger.warning(f"Can't get location: {exc!r}")
+    new_locations = parse_locations_file(locations_file)
     logger.info(
-        f"{locations_csv} contains {len(new_locations)} new locations."
+        f"Parsed {len(new_locations)} new locations from {locations_file}"
     )
 
     # Collect data for each new location; all work (config updates,
@@ -117,6 +109,8 @@ def update_dataset(dataset_name, locations_csv):
         :rtype: callable
         """
         def after_collect():
+            """Append the completed scan number and enqueue the next
+            scan or trigger processing."""
             scan_numbers.append(get_state().spec.scan_n)
             if init and i == 0:
                 # Dataset needs to be set up
@@ -140,16 +134,89 @@ def update_dataset(dataset_name, locations_csv):
                 )
             else:
                 # Queue up the NEXT scan & callback
-                next_labx, next_labz = new_locations[i + 1]
-                get_state().spec.collect_point(
-                    dataset_name, next_labx, next_labz,
+                collect_point(
+                    dataset_name, new_locations[i + 1],
                     callback=make_after_collect(i + 1),
                 )
             get_state().write()
         return after_collect
 
     if new_locations:
-        labx, labz = new_locations[0]
-        get_state().spec.collect_point(
-            dataset_name, labx, labz, callback=make_after_collect(0)
+        collect_point(
+            dataset_name, new_locations[0], callback=make_after_collect(0),
+        )
+
+
+def parse_locations_file(locations_file):
+    """Parse a locations file and return a list of sample positions.
+
+    Supports two formats determined by file extension:
+
+    * ``.csv`` / ``.txt`` — two-column CSV where each row is
+      ``labx, labz`` (floats); rows that cannot be parsed are skipped.
+    * ``.json`` — JSON array of Kuka joint-angle positions.
+
+    :param locations_file: Path to the locations file.
+    :type locations_file: str or pathlib.Path
+    :returns: List of parsed positions (``[labx, labz]`` pairs for CSV,
+        raw JSON objects for JSON).
+    :rtype: list
+    """
+    new_locations = []
+    _, ext = os.path.splitext(locations_file)
+    if ext in (".csv", ".txt"):
+        logger.debug(f"Parsing {locations_file} as 2-column CSV")
+        with open(locations_file, "r") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) != 2:
+                    continue
+                logger.debug(f"row: {row}")
+                try:
+                    _row = [float(x.strip()) for x in row]
+                    new_locations.append(_row)
+                    logger.info(f"Got location: {_row}")
+                except Exception as exc:
+                    logger.warning(f"Can't get location: {exc!r}")
+    elif ext == ".json":
+        logger.debug(
+            f"Parsing {locations_file} as Kuka poses JSON"
+        )
+        with open(locations_file, "r") as f:
+            new_locations = json.load(f)
+    else:
+        logger.error(f"Locations file extension {ext} not supported")
+    return new_locations
+
+
+def collect_point(dataset, location, callback=None):
+    """Enqueue a data-collection sequence for a single sample location.
+
+    Moves the sample positioner (SPEC motors or Kuka robot) to *location*
+    and triggers a ``wbseries`` acquisition.  If ``state.kuka_positioner_url``
+    is set, Kuka positioning is used and a ``newsample`` command is sent to
+    SPEC before the move; otherwise SPEC motor moves are used via
+    :meth:`~app.spec_controller.SpecController.collect_point`.
+
+    :param dataset: Dataset / sample name for the SPEC ``newsample`` command.
+    :type dataset: str
+    :param location: Target position.  For SPEC positioning this must be a
+        two-element sequence ``[labx, labz]``; for Kuka positioning the
+        format is passed directly to :func:`~app.kuka.position_kuka`.
+    :param callback: Optional zero-argument callable invoked after the
+        acquisition command completes.
+    :type callback: callable or None
+    """
+    state = get_state()
+    if state.kuka_positioner_url is None:
+        labx, labz = location
+        logger.debug("Using SPEC for sample positioning")
+        state.spec.collect_point(dataset, labx, labz, callback=callback)
+    else:
+        logger.debug("Using Kuka for sample positioning")
+        state.spec.enqueue(f"newsample \"{dataset}\" 0")
+        position_kuka(location)
+        state.spec.enqueue(
+            f"wbseries {state.tseries_npts} {state.tseries_exposure}",
+            callback=callback,
         )

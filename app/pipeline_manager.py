@@ -55,8 +55,6 @@ def _do_setup(dataset_name, spec_file, map_yaml, data_nxs, nxpath):
     :type dataset_name: str
     :param spec_file: Absolute path to the SPEC log file for this dataset.
     :type spec_file: str
-    :param scan_number: SPEC scan number from the ``newsample`` command.
-    :type scan_number: int
     :param map_yaml: Absolute path to ``map_config.yaml``.
     :type map_yaml: str
     :param data_nxs: Absolute path to the NeXus output file.
@@ -138,12 +136,67 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
     update_strain(data_nxs, path_prefix, scan_numbers, idx_slice, results_json)
     logger.info("Done with update")
     nsdf_root = get_state().nsdf_root
-    if if nsdf_root is not None:
+    if nsdf_root is not None:
         nsdf_nxs = f"{nsdf_root}/{dataset_name}.nxs"
         logger.info(f"Copying {data_nxs} to {nsdf_nxs}")
         shutil.copy(data_nxs, nsdf_nxs)
     else:
         logger.debug("nsdf_root is None; skip copying .nxs file")
+
+def _test_setup(dataset_name, spec_file, map_yaml, data_nxs, nxpath):
+    """Log setup parameters without running any CHAP pipelines (test mode).
+
+    :param dataset_name: Name of the dataset directory under
+        ``analysis_root``.
+    :type dataset_name: str
+    :param spec_file: Absolute path to the SPEC log file for this dataset.
+    :type spec_file: str
+    :param map_yaml: Absolute path to ``map_config.yaml``.
+    :type map_yaml: str
+    :param data_nxs: Absolute path to the NeXus output file.
+    :type data_nxs: str
+    :param nxpath: NXpath for the strain analysis group.
+    :type nxpath: str
+    """
+    logger.info(
+        f"[TEST] setup skipped — dataset_name={dataset_name!r}, "
+        f"spec_file={spec_file!r}, map_yaml={map_yaml!r}, "
+        f"data_nxs={data_nxs!r}, nxpath={nxpath!r}"
+    )
+
+
+def _test_update(dataset_name, scan_numbers, map_yaml, spec_file,
+                 data_nxs, path_prefix, idx_slice, update_i, results_json):
+    """Log update parameters without running any CHAP pipelines (test mode).
+
+    :param dataset_name: Name of the dataset directory under
+        ``analysis_root``.
+    :type dataset_name: str
+    :param scan_numbers: SPEC scan numbers to process.
+    :type scan_numbers: list[int]
+    :param map_yaml: Absolute path to ``map_config.yaml``.
+    :type map_yaml: str
+    :param spec_file: Absolute path to the SPEC log file for this dataset.
+    :type spec_file: str
+    :param data_nxs: Absolute path to the NeXus file.
+    :type data_nxs: str
+    :param path_prefix: NXpath prefix for the strain-analysis writer.
+    :type path_prefix: str
+    :param idx_slice: Write-index slice dict with ``start`` and ``stop`` keys.
+    :type idx_slice: dict
+    :param update_i: Zero-based update index.
+    :type update_i: int
+    :param results_json: Filename of the JSON results file.
+    :type results_json: str
+    """
+    logger.info(
+        f"[TEST] update skipped — dataset_name={dataset_name!r}, "
+        f"scan_numbers={scan_numbers!r}, map_yaml={map_yaml!r}, "
+        f"spec_file={spec_file!r}, data_nxs={data_nxs!r}, "
+        f"path_prefix={path_prefix!r}, idx_slice={idx_slice!r}, "
+        f"update_i={update_i!r}, results_json={results_json!r}"
+    )
+
 
 def submit_setup(dataset_name, spec_file):
     """Queue the config-write and setup pipeline for a new dataset.
@@ -158,12 +211,14 @@ def submit_setup(dataset_name, spec_file):
     :param spec_file: Path to the SPEC file for this dataset.
     :type spec_file: str
     """
-    analysis_dir = Path(get_state().analysis_root) / dataset_name
+    state = get_state()
+    analysis_dir = Path(state.analysis_root) / dataset_name
     map_yaml = str(analysis_dir / "map_config.yaml")
     data_nxs = str(analysis_dir / "data.nxs")
     nxpath = f"/{dataset_name}_strain_analysis"
+    task = _test_setup if state.analysis_test else _do_setup
     _task_queue.put((
-        _do_setup,
+        task,
         (dataset_name, spec_file, map_yaml, data_nxs, nxpath),
         {}
     ))
@@ -200,8 +255,9 @@ def submit_update(dataset_name, spec_file, scan_numbers, scan_start_idx,
     path_prefix = f"/{dataset_name}_strain_analysis/"
     results_json = str(analysis_dir / "strain_results.json")
 
+    task = _test_update if state.analysis_test else _do_update
     _task_queue.put((
-        _do_update,
+        task,
         (
             dataset_name, scan_numbers, map_yaml, spec_file,
             data_nxs, path_prefix,
