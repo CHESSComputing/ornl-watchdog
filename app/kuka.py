@@ -21,9 +21,9 @@ def location_to_pose(location):
 
     :param location: Either a (labx, labz) corrdinate pair or a 4D
         pose matrix
-    :returns: A 4D pose matrix
+    :returns: A 4D pose matrix, lab X coorindate, lab Z coordinate
     """
-    pose = None
+    pose, labx, labz = None, None, None
     if len(location) == 2:
         # labx, labz coordinates were given; transform it to pose
         labx, labz = location
@@ -31,11 +31,15 @@ def location_to_pose(location):
         position = exp_se3(v)
         pose = get_state().kuka_transform_matrix * position
     else:
-        # a pose was already given
-        pose = location
+        # a pose was given; transform to labx, labz coorinates
+        state = get_state()
+        pose = np.asarray(location)
+        position = state.kuka_transform_matrix_inverse @ pose
+        labx = position[0, 3]
+        labz = position[2, 3]
     if isinstance(pose, np.ndarray):
         pose = pose.tolist()
-    return pose
+    return pose, labx, labz
 
 
 def position_kuka(location, max_retries=-1, sleep_duration=5):
@@ -56,8 +60,9 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
     state = get_state()
     success = False
     attempt = 1
+    pose, labx, labz = location_to_pose(location)
     request_data = {
-        "target_pose": location_to_pose(location),
+        "target_pose": pose,
         "control_frame": "lab",
     }
     while not success and (attempt <= max_retries or max_retries < 0):
@@ -87,6 +92,12 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
                 # Invalid position, DO NOT try again
                 logger.error("KUKA POSITIONING FAILED")
                 break
+    if success:
+        logger.debug("Sending \"umv\"s to Kuka pseudomotors")
+        state.spec.enqueue([
+            f"umv {state.labx_motor} {labx}",
+            f"umv {state.labz_motor} {labz}",
+        ])
 
 
 def exp_so3(v: np.ndarray):
