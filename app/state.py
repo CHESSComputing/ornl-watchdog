@@ -8,8 +8,8 @@ future).
 import logging
 import numpy as np
 from pathlib import Path
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field, model_validator, PlainSerializer
+from typing import Annotated, Optional
 import yaml
 
 from app import get_logger
@@ -57,6 +57,12 @@ def load_state(statefile):
     logger.info(f"Loaded state: {_state}")
     return _state
 
+
+def tolist(arr):
+    """Serialier func for StateConfig.kuka_transform_matrix"""
+    if isinstance(arr, np.ndarray):
+        return arr.tolist()
+    return arr
 
 class StateConfig(BaseModel):
     """Configuration and runtime state for the SPEC watchdog daemon.
@@ -132,7 +138,7 @@ class StateConfig(BaseModel):
     labx_motor: str = Field(default="labx")
     labz_motor: str = Field(default="labz")
     kuka_positioner_url: str = None
-    kuka_transform_matrix: np.ndarray = np.eye(4)
+    kuka_transform_matrix: Annotated[np.array, PlainSerializer(tolist)] = np.eye(4)
 
     # Scan settings
     tseries_npts: int = Field(default=1)
