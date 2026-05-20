@@ -214,9 +214,9 @@ def collect_point(dataset, location, callback=None):
         state.spec.collect_point(dataset, labx, labz, callback=callback)
     else:
         logger.debug("Using Kuka for sample positioning")
-        state.spec.enqueue(f"newsample \"{dataset}\" 0")
+        state.spec.enqueue([f"newsample \"{dataset}\" 0"])
         position_kuka(location)
         state.spec.enqueue(
-            f"wbseries {state.tseries_npts} {state.tseries_exposure}",
+            [f"wbseries {state.tseries_npts} {state.tseries_exposure}"],
             callback=callback,
         )
