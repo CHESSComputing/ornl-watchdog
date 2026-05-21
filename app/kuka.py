@@ -19,6 +19,11 @@ def location_to_pose(location):
     """Normalize (labx, labz) coordinate pairs to 4d matrix
     representing an actual Kuka pose.
 
+    NB: Moving a motor in its positive direction corresponds to moving
+    the measured point in the sample's reference frame in the positive
+    direction, too. So we _do not_ need to multiply motor positions by
+    -1 to get the corresponding sample coordinates.
+
     :param location: Either a (labx, labz) corrdinate pair or a 4D
         pose matrix
     :returns: A 4D pose matrix, lab X coorindate, lab Z coordinate
@@ -27,15 +32,14 @@ def location_to_pose(location):
     if len(location) == 2:
         # labx, labz coordinates were given; transform to pose
         labx, labz = location
-        v = np.asarray([-labx, 0, -labz, 0, 0, 0]) # should be -ve to
-                                                   # be in "sample frame"?
+        v = np.asarray([labx, 0, labz, 0, 0, 0])
         position = exp_se3(v)
         pose = get_state().kuka_sample_to_flange @ position
     else:
         # a pose was given; transform to labx, labz coorinates
         pose = np.asarray(location)
-        labx = -pose[0, 3]
-        labz = -pose[2, 3]
+        labx = pose[0, 3]
+        labz = pose[2, 3]
     if isinstance(pose, np.ndarray):
         pose = pose.tolist()
     return pose, labx, labz
