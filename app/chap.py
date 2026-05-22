@@ -109,7 +109,7 @@ def _init_data():
     """Return a fresh list of the static ``PipelineData`` items needed
     to initialise a processor.
     """
-    return [_strain_cfg(), _tth_cfg()]
+    return [_strain_cfg(), _tth_cfg(), _detectors_cfg()]
 
 # Fixed args for the processor and writer (everything except the
 # per-run fields)
