@@ -7,7 +7,7 @@ import json
 import os
 
 from app import get_logger
-from app.kuka import position_kuka
+from app.kuka import kuka_collect_point
 from app.pipeline_manager import submit_setup, submit_update
 from app.state import get_state
 
@@ -169,7 +169,7 @@ def parse_locations_file(locations_file):
         with open(locations_file, "r") as f:
             reader = csv.reader(f)
             for row in reader:
-                if len(row) != 2:
+                if len(row) != 2 and len(row) != 3:
                     continue
                 logger.debug(f"row: {row}")
                 try:
@@ -214,9 +214,4 @@ def collect_point(dataset, location, callback=None):
         state.spec.collect_point(dataset, labx, labz, callback=callback)
     else:
         logger.debug("Using Kuka for sample positioning")
-        state.spec.enqueue([f"newsample \"{dataset}\" 0"])
-        position_kuka(location)
-        state.spec.enqueue(
-            [f"wbseries {state.tseries_npts} {state.tseries_exposure}"],
-            callback=callback,
-        )
+        kuka_collect_point(dataset, location, callback=callback)

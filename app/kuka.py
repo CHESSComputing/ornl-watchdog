@@ -15,34 +15,25 @@ from app.state import get_state
 logger = get_logger("kuka")
 
 
-def location_to_pose(location):
-    """Normalize (labx, labz) coordinate pairs to 4d matrix
-    representing an actual Kuka pose.
-
-    NB: Moving a motor in its positive direction corresponds to moving
-    the measured point in the sample's reference frame in the positive
-    direction, too. So we _do not_ need to multiply motor positions by
-    -1 to get the corresponding sample coordinates.
-
-    :param location: Either a (labx, labz) corrdinate pair or a 4D
-        pose matrix
-    :returns: A 4D pose matrix, lab X coorindate, lab Z coordinate
-    """
-    pose, labx, labz = None, None, None
-    if len(location) == 2:
-        # labx, labz coordinates were given; transform to pose
-        labx, labz = location
-        v = np.asarray([labx, 0, labz, 0, 0, 0])
-        position = exp_se3(v)
-        pose = get_state().kuka_sample_to_flange @ position
+def kuka_collect_point(dataset, location, callback=None):
+    state = get_state()
+    success, labx, laby, labz = position_kuka(location)
+    if success:
+        logger.debug("Sending SPEC commands")
+        state.spec.enqueue(
+            [
+                f"newsample \"{dataset}\" 0",
+                f"umv {state.labx_motor} {labx}",
+                f"umv {state.laby_motor} {laby}",
+                f"umv {state.labz_motor} {labz}",
+                f"wbtseries {state.tseries_npts} {state.tseries_exposure}"
+            ],
+            callback=callback
+        )
     else:
-        # a pose was given; transform to labx, labz coorinates
-        pose = np.asarray(location)
-        labx = pose[0, 3]
-        labz = pose[2, 3]
-    if isinstance(pose, np.ndarray):
-        pose = pose.tolist()
-    return pose, labx, labz
+        logger.error(
+            "Positioning failed, skipping data collection and processing"
+        )
 
 
 def position_kuka(location, max_retries=-1, sleep_duration=5):
@@ -95,12 +86,43 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
                 # Invalid position, DO NOT try again
                 logger.error("KUKA POSITIONING FAILED")
                 break
-    if success:
-        logger.debug("Sending \"umv\"s to Kuka pseudomotors")
-        state.spec.enqueue([
-            f"umv {state.labx_motor} {labx}",
-            f"umv {state.labz_motor} {labz}",
-        ])
+    return success, labx, laby, labz
+
+
+def location_to_pose(location):
+    """Normalize (labx, labz) coordinate pairs to 4d matrix
+    representing an actual Kuka pose.
+
+    NB: Moving a motor in its positive direction corresponds to moving
+    the measured point in the sample's reference frame in the positive
+    direction, too. So we _do not_ need to multiply motor positions by
+    -1 to get the corresponding sample coordinates.
+
+    :param location: Either a (labx, labz) corrdinate pair or a 4D
+        pose matrix
+    :returns: A 4D pose matrix, lab X coorindate, lab Z coordinate
+    """
+    state = get_state()
+    pose, labx, laby, labz = None, None, None, None
+    if len(location) == 3:
+        # labx, labz coordinates were given; transform to pose
+        labx, laby, labz = location
+        v = np.asarray([labx, laby, labz, 0, 0, 0]) * 0.001
+        position = exp_se3(v)
+        lab_to_flange = np.asarray(state.kuka_sample_to_flange) @ np.asarray(state.kuk\
+a_nominal_lab_to_sample) @ np.asarray(position)
+        flange_to_lab = np.linalg.inv(lab_to_flange)
+        pose = flange_to_lab
+    else:
+        raise NotImplementedError
+        # a pose was given; transform to labx, labz coorinates
+        pose = np.asarray(location)
+        labx = pose[0, 3]
+        laby = pose[1, 3]
+        labz = pose[2, 3]
+    if isinstance(pose, np.ndarray):
+        pose = pose.tolist()
+    return pose, labx, laby, labz
 
 
 def exp_so3(v: np.ndarray):
