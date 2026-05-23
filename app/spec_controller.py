@@ -182,20 +182,27 @@ class SpecController:
             f"after {max_retries} attempt(s)"
         )
 
-    def enqueue(self, command_sequence, callback=None):
+    def enqueue(self, commands, callback=None):
         """Add a SPEC command sequence to the processing queue.
 
         The sequence is consumed by the background worker thread in FIFO
         order.  The optional *callback* is called once after the last
-        command in *command_sequence* completes without error.
+        command in *commands* completes without error.
 
-        :param command_sequence: Ordered list of SPEC command strings.
-        :type command_sequence: list[str]
+        *commands* may also be a zero-argument callable that returns a
+        ``list[str]`` at execution time (useful when the command list
+        depends on the result of a hardware call such as a Kuka move).
+        The callable is invoked by the worker thread; a ``None`` return
+        aborts the sequence and suppresses *callback*.
+
+        :param commands: Ordered list of SPEC command strings, or a
+            zero-argument callable returning such a list (or ``None``).
+        :type commands: list[str] or callable
         :param callback: Optional zero-argument callable invoked after the
             sequence completes.
         :type callback: callable or None
         """
-        self.queue.put((command_sequence, callback))
+        self.queue.put((commands, callback))
 
     async def client_exec(self, command):
         """Execute a command on the SPEC server without sending an
@@ -256,12 +263,19 @@ class SpecController:
 
         Blocks on :attr:`queue`, dequeues ``(commands, callback)`` tuples,
         sends each command via :meth:`_send`, and then calls *callback* if
-        one was supplied.  Exceptions are caught and logged so the worker
-        never exits unintentionally.
+        one was supplied.  If *commands* is callable (see
+        :meth:`enqueue`), it is called first to obtain the command list;
+        a ``None`` return aborts the sequence without invoking *callback*.
+        Exceptions are caught and logged so the worker never exits
+        unintentionally.
         """
         while True:
             commands, callback = self.queue.get()
             try:
+                if callable(commands):
+                    commands = commands()
+                    if commands is None:
+                        continue
                 for cmd in commands:
                     while not self.status_ready:
                         logger.warning("SPEC not ready; waiting for ready")
@@ -455,34 +469,43 @@ class TestSpecController:
             f"{spec_host}:{spec_port})"
         )
 
-    def enqueue(self, command_sequence, callback=None):
+    def enqueue(self, commands, callback=None):
         """Add a SPEC command sequence to the processing queue.
 
         The sequence is consumed by the background worker thread in FIFO
         order.  Commands are logged rather than transmitted.  The optional
-        *callback* is called once after the last command in
-        *command_sequence* is processed.
+        *callback* is called once after the last command in *commands* is
+        processed.
 
-        :param command_sequence: Ordered list of SPEC command strings.
-        :type command_sequence: list[str]
+        *commands* may also be a zero-argument callable; see
+        :meth:`SpecController.enqueue` for details.
+
+        :param commands: Ordered list of SPEC command strings, or a
+            zero-argument callable returning such a list (or ``None``).
+        :type commands: list[str] or callable
         :param callback: Optional zero-argument callable invoked after the
             sequence completes.
         :type callback: callable or None
         """
-        self.queue.put((command_sequence, callback))
+        self.queue.put((commands, callback))
 
     def _worker_loop(self):
         """Continuously drain the command queue in a background thread.
 
         Blocks on :attr:`queue`, dequeues ``(commands, callback)`` tuples,
         logs each command at INFO level, increments :attr:`_scan_n` once
-        per sequence, and then calls *callback* if one was supplied.
-        Exceptions are caught and logged so the worker never exits
-        unintentionally.
+        per sequence, and then calls *callback* if one was supplied.  If
+        *commands* is callable (queued via :meth:`enqueue_fn`), it is
+        called first; a ``None`` return aborts the sequence.  Exceptions
+        are caught and logged so the worker never exits unintentionally.
         """
         while True:
             commands, callback = self.queue.get()
             try:
+                if callable(commands):
+                    commands = commands()
+                    if commands is None:
+                        continue
                 for cmd in commands:
                     logger.info(f"[TEST-SPEC] command: {cmd}")
                 self._scan_n += 1

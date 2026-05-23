@@ -17,23 +17,24 @@ logger = get_logger("kuka")
 
 def kuka_collect_point(dataset, location, callback=None):
     state = get_state()
-    success, labx, laby, labz = position_kuka(location)
-    if success:
+
+    def position_and_build():
+        success, labx, laby, labz = position_kuka(location)
+        if not success:
+            logger.error(
+                "Positioning failed, skipping data collection and processing"
+            )
+            return None
         logger.debug("Sending SPEC commands")
-        state.spec.enqueue(
-            [
-                f"newsample \"{dataset}\" 0",
-                f"umv {state.labx_motor} {labx}",
-                f"umv {state.laby_motor} {laby}",
-                f"umv {state.labz_motor} {labz}",
-                f"wbtseries {state.tseries_npts} {state.tseries_exposure}"
-            ],
-            callback=callback
-        )
-    else:
-        logger.error(
-            "Positioning failed, skipping data collection and processing"
-        )
+        return [
+            f"newsample \"{dataset}\" 0",
+            f"umv {state.labx_motor} {labx}",
+            f"umv {state.laby_motor} {laby}",
+            f"umv {state.labz_motor} {labz}",
+            f"wbtseries {state.tseries_npts} {state.tseries_exposure}"
+        ]
+
+    state.spec.enqueue(position_and_build, callback=callback)
 
 
 def position_kuka(location, max_retries=-1, sleep_duration=5):
@@ -54,7 +55,7 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
     state = get_state()
     success = False
     attempt = 1
-    pose, labx, labz = location_to_pose(location)
+    pose, labx, laby, labz = location_to_pose(location)
     request_data = {
         "target_pose": pose,
         "control_frame": "lab",
