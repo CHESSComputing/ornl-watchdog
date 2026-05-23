@@ -144,9 +144,11 @@ class StateConfig(BaseModel):
 
     # Sample positioner settings
     labx_motor: str = Field(default="labx")
+    laby_motor: str = Field(default='laby')
     labz_motor: str = Field(default="labz")
     kuka_positioner_url: str = None
     kuka_sample_to_flange: Annotated[np.array, PlainSerializer(tolist)] = np.eye(4)
+    kuka_nominal_lab_to_sample: Annotated[np.array, PlainSerializer(tolist)] = np.eye(4)
 
     # Scan settings
     tseries_npts: int = Field(default=1)

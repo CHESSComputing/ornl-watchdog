@@ -89,12 +89,12 @@ def create_dataset_configs(dataset_name, spec_file):
                     "data_type": "spec_motor",
                     "name": get_state().labx_motor
                 },
-                # {
-                #     "label": "laby",
-                #     "units": "mm",
-                #     "data_type": "spec_motor",
-                #     "name": "rams4yr"
-                # },
+                {
+                    "label": "laby",
+                    "units": "mm",
+                    "data_type": "spec_motor",
+                    "name": get_state().laby_motor
+                },
                 {
                     "label": "labz",
                     "units": "mm",
