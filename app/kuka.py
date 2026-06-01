@@ -110,8 +110,7 @@ def location_to_pose(location):
         labx, laby, labz = location
         v = np.asarray([labx, laby, labz, 0, 0, 0]) * 0.001
         position = exp_se3(v)
-        lab_to_flange = np.asarray(state.kuka_sample_to_flange) @ np.asarray(state.kuk\
-a_nominal_lab_to_sample) @ np.asarray(position)
+        lab_to_flange = np.asarray(state.kuka_sample_to_flange) @ np.asarray(state.kuka_nominal_lab_to_sample) @ np.asarray(position)
         flange_to_lab = np.linalg.inv(lab_to_flange)
         pose = flange_to_lab
     else:
