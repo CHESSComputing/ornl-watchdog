@@ -63,7 +63,7 @@ class SpecController:
         self.spec_timeout = spec_timeout
         self.labx_motor = labx_motor
         self.labz_motor = labz_motor
-        self.scan_commad = scan_command
+        self.scan_command = scan_command
 
         self.client = None
         self.async_event_loop = asyncio.new_event_loop()
@@ -413,7 +413,7 @@ class TestSpecController:
     :ivar labz_motor: SPEC mnemonic for the labz motor.
     :vartype labz_motor: str
     :ivar scan_command: SPEC scan command to run at every point.
-    :vartype scan_commad: str
+    :vartype scan_command: str
     """
 
     def __init__(
@@ -439,7 +439,7 @@ class TestSpecController:
         :param labz_motor: SPEC mnemonic for the labz motor.
         :type labz_motor: str
         :param scan_command: SPEC scan command to run at every point.
-        :type scan_commad: str
+        :type scan_command: str
         """
         self.spec_host = spec_host
         self.spec_port = spec_port
