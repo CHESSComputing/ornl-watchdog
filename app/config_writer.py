@@ -101,6 +101,10 @@ def create_dataset_configs(dataset_name, spec_file):
                 #     "data_type": "smb_par",
                 #     "name": "ometotal"
                 # }
+                *(
+                    {**dim, "data_type": "spec_motor"}
+                    for dim in _state.scan_motors
+                )
             ],
             "presample_intensity": {
                 "label": "presample_intensity",
@@ -121,7 +125,7 @@ def create_dataset_configs(dataset_name, spec_file):
                 "name": "diode"
             },
             "attrs": {
-                "scan_type": 0,
+                "scan_type": len(_state.scan_motors),
                 "config_id": 1,
                 "dataset_id": 1
             }
@@ -135,7 +139,6 @@ def create_dataset_configs(dataset_name, spec_file):
                     "name": _state.laby_motor
                 }
             )
-            map_config["attrs"]["scan_type"] = 1
         with open(map_yaml, "w") as f:
             logger.debug(f"Writing {map_yaml}")
             yaml.dump(map_config, f, sort_keys=False, Dumper=VerboseSafeDumper)

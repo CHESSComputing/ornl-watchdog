@@ -118,6 +118,10 @@ class StateConfig(BaseModel):
     :vartype labz_motor: str
     :ivar scan_command: SPEC scan command to run at every point.
     :vartype scan_command: str
+    :ivar scan_motors: List of dictionaries configuring the
+        independent dimensions coming from the scanned SPEC motor(s)
+        in ``scan_command``. Defaults to ``[]``
+    :vartype scan_motors: list[dict], optional
     :ivar watch_root: Root directory watched for new datasets and updates.
     :vartype watch_root: pathlib.Path
     :ivar analysis_root: Root directory for CHAP analysis outputs.
@@ -162,6 +166,7 @@ class StateConfig(BaseModel):
 
     # Scan settings
     scan_command: str = Field(default="wbtseries 1 10")
+    scan_motors: Optional[list[dict]] = []
 
     # Automation directory
     watch_root: Path = Field(
