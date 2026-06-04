@@ -100,12 +100,20 @@ class StateConfig(BaseModel):
     :ivar kuka_positioner_url: Base URL of the Kuka positioner HTTP server,
         or ``None`` to use SPEC motor moves for sample positioning.
     :vartype kuka_positioner_url: str or None
-    :ivar kuka_sample_to_flange: Transformation matrix for converting
-        position matrices in sample / lab coordinates to "point cloud"
-        coordinates, defaults to ``np.eye(4)``.
+    :ivar kuka_sample_to_flange: 4x4 transformation matrix for
+        converting position matrices in sample coordinates to robot
+        flange coordinates, defaults to ``None``.
     :vartype kuka_sample_to_flange: nump.ndarray, optional
+    :ivar kuka_nominal_lab_to_sample: 4x4 transformation matrix for
+        converting position matrices in lab coordinates to sample
+        coordinates, defaults to ``None``.
+    :vartype kuka_nominal_lab_to_sample: nump.ndarray, optional
     :ivar labx_motor: Mnemonic of the labx motor in SPEC.
     :vartype labx_motor: str
+    :ivar laby_motor: Only used when the kuka robot is being used for
+        sample positioning. Mnemonic of the laby motor in
+        SPEC. Defaults to ``None``
+    :vartype laby_motor: str, optional
     :ivar labz_motor: Mnemonic of the labz motor in SPEC.
     :vartype labz_motor: str
     :ivar tseries_npts: Number of points in each tseries acquisition.
@@ -144,11 +152,15 @@ class StateConfig(BaseModel):
 
     # Sample positioner settings
     labx_motor: str = Field(default="labx")
-    laby_motor: str = Field(default='laby')
+    laby_motor: Optional[str] = Field(default=None)
     labz_motor: str = Field(default="labz")
-    kuka_positioner_url: str = None
-    kuka_sample_to_flange: Annotated[np.array, PlainSerializer(tolist)] = np.eye(4)
-    kuka_nominal_lab_to_sample: Annotated[np.array, PlainSerializer(tolist)] = np.eye(4)
+
+    # Kuka settings
+    kuka_positioner_url: Optional[str] = None
+    kuka_sample_to_flange: Optional[
+        Annotated[np.array, PlainSerializer(tolist)]] = None
+    kuka_nominal_lab_to_sample: Optional[
+        Annotated[np.array, PlainSerializer(tolist)]] = None
 
     # Scan settings
     tseries_npts: int = Field(default=1)

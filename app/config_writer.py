@@ -87,19 +87,13 @@ def create_dataset_configs(dataset_name, spec_file):
                     "label": "labx",
                     "units": "mm",
                     "data_type": "spec_motor",
-                    "name": get_state().labx_motor
-                },
-                {
-                    "label": "laby",
-                    "units": "mm",
-                    "data_type": "spec_motor",
-                    "name": get_state().laby_motor
+                    "name": _state.labx_motor
                 },
                 {
                     "label": "labz",
                     "units": "mm",
                     "data_type": "spec_motor",
-                    "name": get_state().labz_motor
+                    "name": _state.labz_motor
                 },
                 # {
                 #     "label": "ometotal",
@@ -132,6 +126,16 @@ def create_dataset_configs(dataset_name, spec_file):
                 "dataset_id": 1
             }
         }
+        if _state.laby_motor is not None:
+            map_config["independent_dimensions"].insert(
+                1, {
+                    "label": "laby",
+                    "units": "mm",
+                    "data_type": "spec_motor",
+                    "name": _state.laby_motor
+                }
+            )
+            map_config["attrs"]["scan_type"] = 1
         with open(map_yaml, "w") as f:
             logger.debug(f"Writing {map_yaml}")
             yaml.dump(map_config, f, sort_keys=False, Dumper=VerboseSafeDumper)
