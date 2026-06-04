@@ -121,7 +121,7 @@ def _do_update(dataset_name, scan_numbers, map_yaml, spec_file,
             update_raw(map_yaml, spec_file, scan_numbers, data_nxs)
             break
         except OSError as exc:
-            if "truncated file" not in str(exc) or attempt == _H5_RETRY_LIMIT:
+            if attempt == _H5_RETRY_LIMIT:
                 raise
             logger.warning(
                 "Detector h5 not ready yet "
