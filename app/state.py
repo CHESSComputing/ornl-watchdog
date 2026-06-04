@@ -116,10 +116,8 @@ class StateConfig(BaseModel):
     :vartype laby_motor: str, optional
     :ivar labz_motor: Mnemonic of the labz motor in SPEC.
     :vartype labz_motor: str
-    :ivar tseries_npts: Number of points in each tseries acquisition.
-    :vartype tseries_npts: int
-    :ivar tseries_exposure: Exposure time per tseries point in seconds.
-    :vartype tseries_exposure: float
+    :ivar scan_command: SPEC scan command to run at every point.
+    :vartype scan_command: str
     :ivar watch_root: Root directory watched for new datasets and updates.
     :vartype watch_root: pathlib.Path
     :ivar analysis_root: Root directory for CHAP analysis outputs.
@@ -163,8 +161,7 @@ class StateConfig(BaseModel):
         Annotated[np.array, PlainSerializer(tolist)]] = None
 
     # Scan settings
-    tseries_npts: int = Field(default=1)
-    tseries_exposure: float = Field(default=10)
+    scan_command: str = Field(default="wbtseries 1 10")
 
     # Automation directory
     watch_root: Path = Field(
@@ -215,7 +212,7 @@ class StateConfig(BaseModel):
         self.spec = cls(
             self.spec_host, self.spec_port, self.spec_timeout,
             self.labx_motor, self.labz_motor,
-            self.tseries_npts, self.tseries_exposure,
+            self.scan_command,
         )
         return self
 

@@ -32,17 +32,15 @@ class SpecController:
     :vartype labx_motor: str
     :ivar labz_motor: SPEC mnemonic for the labz motor.
     :vartype labz_motor: str
-    :ivar tseries_npts: Number of points per ``tseries`` acquisition.
-    :vartype tseries_npts: int
-    :ivar tseries_exposure: Exposure time per ``tseries`` point in seconds.
-    :vartype tseries_exposure: float
+    :ivar scan_command: SPEC scan command to run at every point.
+    :vartype scan_command: str
     """
 
     def __init__(
             self,
             spec_host, spec_port, spec_timeout,
             labx_motor, labz_motor,
-            tseries_npts, tseries_exposure
+            scan_command,
     ):
         """Initialise the controller, connect to SPEC, and start the
         worker thread.
@@ -57,19 +55,15 @@ class SpecController:
         :type labx_motor: str
         :param labz_motor: SPEC mnemonic for the labz motor.
         :type labz_motor: str
-        :param tseries_npts: Number of points per ``tseries`` acquisition.
-        :type tseries_npts: int
-        :param tseries_exposure: Exposure time per ``tseries`` point
-            in seconds.
-        :type tseries_exposure: float
+        :param scan_command: SPEC scan command to run at every point.
+        :type scan_command: str
         """
         self.spec_host = spec_host
         self.spec_port = spec_port
         self.spec_timeout = spec_timeout
         self.labx_motor = labx_motor
         self.labz_motor = labz_motor
-        self.tseries_npts = tseries_npts
-        self.tseries_exposure = tseries_exposure
+        self.scan_commad = scan_command
 
         self.client = None
         self.async_event_loop = asyncio.new_event_loop()
@@ -109,10 +103,10 @@ class SpecController:
             coroutine(*coroutine_args, **coroutine_kwargs),
             self.async_event_loop,
         )
-        # Force timeout to 3 hours if it's a wbtseries (to
+        # Force timeout to 3 hours if it's a data collection scan (to
         # handle holding pattern from beam losses)
         cmd = str(coroutine_args)
-        timeout = 10800 if cmd.startswith("wbtseries") else self.spec_timeout
+        timeout = 10800 if cmd == self.scan_command else self.spec_timeout
         logger.debug(f"timeout = {timeout}")
         try:
             return future.result(timeout=timeout)
@@ -297,7 +291,7 @@ class SpecController:
         """Enqueue a full data-collection sequence for a single sample point.
 
         Builds and enqueues the four-command sequence:
-        ``newsample``, ``mv labx``, ``mv labz``, ``tseries``.
+        ``newsample``, ``umv labx``, ``umv labz``, ``self.scan_command``.
 
         :param dataset: Dataset / sample name passed to ``newsample``.
         :type dataset: str
@@ -306,15 +300,14 @@ class SpecController:
         :param labz: Target labz motor position.
         :type labz: float or str
         :param callback: Optional zero-argument callable invoked after
-            ``tseries`` completes.
+            the SPEC scan command completes.
         :type callback: callable or None
         """
         commands = [
             f"newsample \"{dataset}\" 0",
             f"umv {self.labx_motor} {labx}",
             f"umv {self.labz_motor} {labz}",
-            f"wbtseries {self.tseries_npts} {self.tseries_exposure}"
-            # f"tseries {self.tseries_npts} {self.tseries_exposure}",
+            self.scan_command,
         ]
         self.enqueue(commands, callback)
 
@@ -419,17 +412,15 @@ class TestSpecController:
     :vartype labx_motor: str
     :ivar labz_motor: SPEC mnemonic for the labz motor.
     :vartype labz_motor: str
-    :ivar tseries_npts: Number of points per ``tseries`` acquisition.
-    :vartype tseries_npts: int
-    :ivar tseries_exposure: Exposure time per ``tseries`` point in seconds.
-    :vartype tseries_exposure: float
+    :ivar scan_command: SPEC scan command to run at every point.
+    :vartype scan_commad: str
     """
 
     def __init__(
             self,
             spec_host, spec_port, spec_timeout,
             labx_motor, labz_motor,
-            tseries_npts, tseries_exposure
+            scan_command,
     ):
         """Initialise the test controller and start the worker thread.
 
@@ -447,18 +438,15 @@ class TestSpecController:
         :type labx_motor: str
         :param labz_motor: SPEC mnemonic for the labz motor.
         :type labz_motor: str
-        :param tseries_npts: Number of points per ``tseries`` acquisition.
-        :type tseries_npts: int
-        :param tseries_exposure: Exposure time per ``tseries`` point in seconds.
-        :type tseries_exposure: float
+        :param scan_command: SPEC scan command to run at every point.
+        :type scan_commad: str
         """
         self.spec_host = spec_host
         self.spec_port = spec_port
         self.spec_timeout = spec_timeout
         self.labx_motor = labx_motor
         self.labz_motor = labz_motor
-        self.tseries_npts = tseries_npts
-        self.tseries_exposure = tseries_exposure
+        self.scan_command = scan_command
 
         self._scan_n = 0
         self.queue = queue.Queue()
@@ -538,7 +526,7 @@ class TestSpecController:
             f"newsample \"{dataset}\" 0",
             f"umv {self.labx_motor} {labx}",
             f"umv {self.labz_motor} {labz}",
-            f"wbtseries {self.tseries_npts} {self.tseries_exposure}",
+            self.scan_command,
         ]
         self.enqueue(commands, callback)
 
@@ -557,7 +545,7 @@ class TestSpecController:
 
     @property
     def spec_file(self):
-        """Fake SPEC data file path returned as a stand-in during testing.
+        """Placeholder SPEC data file path returned as a stand-in during testing.
 
         :rtype: str
         """
