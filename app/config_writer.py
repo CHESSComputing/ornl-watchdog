@@ -86,13 +86,13 @@ def create_dataset_configs(dataset_name, spec_file):
                 {
                     "label": "labx",
                     "units": "mm",
-                    "data_type": "spec_motor",
+                    "data_type": "spec_motor_static",
                     "name": _state.labx_motor
                 },
                 {
                     "label": "labz",
                     "units": "mm",
-                    "data_type": "spec_motor",
+                    "data_type": "spec_motor_static",
                     "name": _state.labz_motor
                 },
                 # {
@@ -135,7 +135,7 @@ def create_dataset_configs(dataset_name, spec_file):
                 1, {
                     "label": "laby",
                     "units": "mm",
-                    "data_type": "spec_motor",
+                    "data_type": "spec_motor_static",
                     "name": _state.laby_motor
                 }
             )
@@ -244,17 +244,32 @@ def update_dataset_configs(dataset_name, scan_numbers, update_i):
     logger.debug(f"Updating {map_yaml}")
     with open(map_yaml, "r") as f:
         map_config = yaml.safe_load(f)
-    # Quick, before we update it, get the number of points already in
-    # the dataset and use it as the start index for writing the slice
-    # of new update data
+    # Before updating the list of scan numbers, get start_idx from
+    # the number of (already processed) scans in the map
     start_idx = len(map_config["spec_scans"][0]["scan_numbers"])
-    stop_idx = start_idx + len(scan_numbers)
-    map_config["spec_scans"][0]["scan_numbers"].extend(scan_numbers)
+    # Update the list of scan numbers; only process new scan numbers
+    # not already in the map
+    unique = set(map_config["spec_scans"][0]["scan_numbers"])
+    for scan_number in scan_numbers:
+        if not scan_number in unique:
+            map_config["spec_scans"][0]["scan_numbers"].append(scan_number)
+            unique.add(scan_number)
+        else:
+            logger.warning(f"Scan {scan_number} has already been processed")
+    # After updating the list of scan_numbers, get stop_idx from the
+    # new total number of scans in the map
+    stop_idx = start_idx + len(map_config["spec_scans"][0]["scan_numbers"])
+    if start_idx == stop_idx:
+        logger.error(
+            f"Scan number(s) {scan_numbers} have already been processed."
+        )
+        raise RuntimeError("No new SPEC scan numbers")
     with open(map_yaml, "w") as f:
         yaml.dump(map_config, f, sort_keys=False, Dumper=VerboseSafeDumper)
     logger.info(f"Updated {map_yaml}")
 
-    # Update the pipeline config to include a new "update" step for the new scans
+    # Update the pipeline config to include a new "update" step for
+    # the new scans
     logger.debug(f"Updating {pipeline_yaml}")
     with open(pipeline_yaml, "r") as f:
         pipeline_config = yaml.safe_load(f)
