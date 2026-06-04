@@ -106,7 +106,7 @@ class SpecController:
         # Force timeout to 3 hours if it's a data collection scan (to
         # handle holding pattern from beam losses)
         cmd = str(coroutine_args)
-        timeout = 10800 if cmd == self.scan_command else self.spec_timeout
+        timeout = 10800 if self.scan_command in cmd else self.spec_timeout
         logger.debug(f"timeout = {timeout}")
         try:
             return future.result(timeout=timeout)
