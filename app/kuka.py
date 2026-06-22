@@ -31,7 +31,7 @@ def kuka_collect_point(dataset, location, callback=None):
             f"umv {state.labx_motor} {labx}",
             f"umv {state.laby_motor} {laby}",
             f"umv {state.labz_motor} {labz}",
-            f"wbtseries {state.tseries_npts} {state.tseries_exposure}"
+            state.scan_command,
         ]
 
     state.spec.enqueue(position_and_build, callback=callback)
