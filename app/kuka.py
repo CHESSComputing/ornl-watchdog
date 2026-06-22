@@ -91,7 +91,7 @@ def position_kuka(location, max_retries=-1, sleep_duration=5):
 
 
 def location_to_pose(location):
-    """Normalize (labx, labz) coordinate pairs to 4d matrix
+    """Normalize (labx, laby, labz) coordinate pairs to 4d matrix
     representing an actual Kuka pose.
 
     NB: Moving a motor in its positive direction corresponds to moving
@@ -99,14 +99,15 @@ def location_to_pose(location):
     direction, too. So we _do not_ need to multiply motor positions by
     -1 to get the corresponding sample coordinates.
 
-    :param location: Either a (labx, labz) corrdinate pair or a 4D
-        pose matrix
-    :returns: A 4D pose matrix, lab X coorindate, lab Z coordinate
+    :param location: Either a (labx, laby, labz) corrdinate triplet or
+        a 4D pose matrix
+    :returns: A 4D pose matrix, lab X coorindate, lab Y coordinate,
+        lab Z coordinate
     """
     state = get_state()
     pose, labx, laby, labz = None, None, None, None
     if len(location) == 3:
-        # labx, labz coordinates were given; transform to pose
+        # labx, laby, labz coordinates were given; transform to pose
         labx, laby, labz = location
         v = np.asarray([labx, laby, labz, 0, 0, 0]) * 0.001
         position = exp_se3(v)
@@ -115,7 +116,7 @@ def location_to_pose(location):
         pose = flange_to_lab
     else:
         raise NotImplementedError
-        # a pose was given; transform to labx, labz coorinates
+        # a pose was given; transform to labx, laby, labz coorinates
         pose = np.asarray(location)
         labx = pose[0, 3]
         laby = pose[1, 3]
