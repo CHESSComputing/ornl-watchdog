@@ -10,25 +10,36 @@ Application to CHESS-side control of ORNL EDD beamtime: SPEC and CHAP
 1. Gather and process calibration data using the usual `CHAP` workflow (`template_yaml/calibration_pipeline.yaml`). The crucial product of this step is: a tth calibration configuration yaml file.
 1. Set up the configuration file for the watchdog program (template below) and save it to `/nfs/chess/aux/cycles/<cycle>/<station>/<btr>/metadata/watchdog_config.yaml`.
    ```yaml
-   filename: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/watchdog_config.yaml
+   filename: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/holding_bay/watchdog_config.yaml
 
    spec_host: id1a3.classe.cornell.edu
    spec_port: 6510
    spec_timeout: 30
 
    labx_motor: <labx>
+   laby_motor: <laby>
    labz_motor: <labz>
-   tseries_npts: 1
-   tseries_exposure: 10
+
+   # Fill in these fields when using the kuka robot for sample positioning
+   # qw_motor: <qw>
+   # qx_motor: <qx>
+   # qy_motor: <qy>
+   # qz_motor: <qz>
+   # kuka_positioner_url: http://host:port
+   # kuka_sample_to_flange: [[], [], [], []]
+   # kuka_nominal_lab_to_sample: [[], [], [], []]
+
+   scan_command: "wbtseries 1 10"
+   scan_motors: []
 
    watch_root: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/autonomous-edd/
    analysis_root: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/reduced_data/
    # Uncomment to make copies of updated nexus files to a separate location for viz
    # nsdf_root: /nfs/chess/nsdf01/nsdf/workflow/<btr>
 
-   detectors_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/metadata/xps23_config.yaml
+   detectors_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/holding_bay/xps23_config.yaml
    calibration_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/reduced_data/tth_calibration_config.yaml
-   strain_analysis_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/reduced_data/strain_analysis_config.yaml
+   strain_analysis_yaml: /nfs/chess/aux/cycles/2026-2/id1a3/<btr>/holding_bay/strain_analysis_config.yaml
 
    datasets: {}
    ```
