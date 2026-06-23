@@ -136,9 +136,20 @@ def create_dataset_configs(dataset_name, spec_file):
                     "label": "laby",
                     "units": "mm",
                     "data_type": "spec_motor_static",
-                    "name": _state.laby_motor
+                    "name": _state.laby_motor,
                 }
             )
+        for motor in ("qw", "qx", "qy", "qz"):
+            motor_name = getattr(_state, f"{motor}_motor")
+            if motor_name is not None:
+                map_config["independent_dimensions"].append(
+                    {
+                        "label": motor,
+                        "units": "unitless",
+                        "data_type": "spec_motor_static",
+                        "name": motor_name,
+                    }
+                )
         with open(map_yaml, "w") as f:
             logger.debug(f"Writing {map_yaml}")
             yaml.dump(map_config, f, sort_keys=False, Dumper=VerboseSafeDumper)

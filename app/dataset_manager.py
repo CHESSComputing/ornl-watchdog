@@ -169,7 +169,7 @@ def parse_locations_file(locations_file):
         with open(locations_file, "r") as f:
             reader = csv.reader(f)
             for row in reader:
-                if len(row) != 2 and len(row) != 3:
+                if len(row) not in (2, 3, 7):
                     continue
                 logger.debug(f"row: {row}")
                 try:

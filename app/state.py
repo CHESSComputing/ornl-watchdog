@@ -110,12 +110,23 @@ class StateConfig(BaseModel):
     :vartype kuka_nominal_lab_to_sample: nump.ndarray, optional
     :ivar labx_motor: Mnemonic of the labx motor in SPEC.
     :vartype labx_motor: str
-    :ivar laby_motor: Only used when the kuka robot is being used for
-        sample positioning. Mnemonic of the laby motor in
-        SPEC. Defaults to ``None``
+    :ivar laby_motor: Mnemonic of the laby motor in SPEC. Defaults to
+        ``None``
     :vartype laby_motor: str, optional
     :ivar labz_motor: Mnemonic of the labz motor in SPEC.
     :vartype labz_motor: str
+    :ivar qw_motor: Mnemonic of the qw (quaternion rotation "w")
+        placeholder motor in SPEC. Defaults to ``None``
+    :vartype qw_motor: str, optional
+    :ivar qx_motor: Mnemonic of the qx (quaternion rotation "x")
+        placeholder motor in SPEC. Defaults to ``None``
+    :vartype qx_motor: str, optional
+    :ivar qy_motor: Mnemonic of the qy (quaternion rotation "y")
+        placeholder motor in SPEC. Defaults to ``None``
+    :vartype qy_motor: str, optional
+    :ivar qz_motor: Mnemonic of the qz (quaternion rotation "z")
+        placeholder motor in SPEC. Defaults to ``None``
+    :vartype qz_motor: str, optional
     :ivar scan_command: SPEC scan command to run at every point.
     :vartype scan_command: str
     :ivar scan_motors: List of dictionaries configuring the
@@ -156,6 +167,11 @@ class StateConfig(BaseModel):
     labx_motor: str = Field(default="labx")
     laby_motor: Optional[str] = Field(default=None)
     labz_motor: str = Field(default="labz")
+
+    qw_motor: Optional[str] = Field(default=None)
+    qx_motor: Optional[str] = Field(default=None)
+    qy_motor: Optional[str] = Field(default=None)
+    qz_motor: Optional[str] = Field(default=None)
 
     # Kuka settings
     kuka_positioner_url: Optional[str] = None
